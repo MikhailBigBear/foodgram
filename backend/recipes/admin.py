@@ -48,7 +48,9 @@ class RecipeAdmin(admin.ModelAdmin):
     filter_horizontal = ("tag", "ingredient")
     readonly_fields = "created_at"
     fields = (
-        ("Основное", {"fields": ("name", "author", "image", "text", "cooking_time")}),
+        ("Основное", {"fields": (
+            "name", "author", "image", "text", "cooking_time"
+            )}),
         (
             "Дополнительно",
             {
