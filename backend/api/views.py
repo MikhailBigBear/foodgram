@@ -1,16 +1,16 @@
 from rest_framework import viewsets, permissions, status, response, decorators
+from rest_framework.authtoken.models import Token
+from rest_framework.authtoken.views import ObtainAuthToken
+from rest_framework.views import APIView
 from django.shortcuts import get_object_or_404
 from django.http import FileResponse
-from recipes.models import (
-     Recipe, Tag, Ingredient, Favorite, ShoppingCart, Subscription
-)
+from recipes.models import Recipe, Tag, Ingredient, Favorite, ShoppingCart, Subscription
 from users.models import User
 from .serializers import (
     RecipeSerializer,
     TagSerializer,
     IngredientSerializer,
     UserSerializer,
-    RecipeIngredientSerializer,
 )
 from .permissions import IsAuthorOrReadOnly, IsAuthenticated
 from .pagination import StandardResultsSetPagination
@@ -42,8 +42,7 @@ class UserViewSet(viewsets.ReadOnlyModelViewSet):
         avatar = request.data.get("avatar")
         if not avatar:
             return response.Response(
-                {"avatar": ["Обязательное поле."]},
-                status=status.HTTP_400_BAD_REQUEST
+                {"avatar": ["Обязательное поле."]}, status=status.HTTP_400_BAD_REQUEST
             )
         user.avatar = avatar
         user.save()
@@ -247,4 +246,29 @@ class SubscriptionViewSet(viewsets.ViewSet):
         """Отписывает текущего пользователя от автора с ID=pk."""
         author = get_object_or_404(User, id=pk)
         Subscription.objects.filter(user=request.user, author=author).delete()
+        return response.Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class TokenLoginView(ObtainAuthToken):
+    """View для авторизации по токену."""
+
+    def post(self, request, *args, **kwargs):
+        """Получает токен для авторизации пользователя."""
+        serializer = self.serializer_class(
+            data=request.data, context={"request": request}
+        )
+        serializer.is_valid(raise_exception=True)
+        user = serializer.validated_data["user"]
+        token, created = Token.objects.get_or_create(user=user)
+        return response.Response({"token": token.key})
+
+
+class TokenLogoutView(APIView):
+    """View для выхода из системы."""
+
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        """Удаляет токен текущего пользователя."""
+        request.user.auth_token.delete()
         return response.Response(status=status.HTTP_204_NO_CONTENT)

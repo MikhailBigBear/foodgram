@@ -8,16 +8,11 @@ from .models import (
     Subscription,
     Tag,
 )
-from django.contrib.auth.models import User
 
 
-admin.site.register(Ingredient)
-admin.site.register(Favorite)
-admin.site.register(Recipe)
-admin.site.register(RecipeIngredient)
-admin.site.register(ShoppingCart)
-admin.site.register(Subscription)
-admin.site.register(Tag)
+class RecipeIngredientInline(admin.TabularInline):
+    model = RecipeIngredient
+    extra = 1
 
 
 @admin.register(Ingredient)
@@ -33,8 +28,8 @@ class IngredientAdmin(admin.ModelAdmin):
 class FavoriteAdmin(admin.ModelAdmin):
     """Настройка отображения модели Favorite в админке."""
 
-    list_display = ("user", "recipe", "created_at")
-    list_filter = ("user", "recipe", "created_at")
+    list_display = ("user", "recipe")
+    list_filter = ("user", "recipe")
     search_fields = ("user__username", "recipe__name")
 
 
@@ -45,17 +40,19 @@ class RecipeAdmin(admin.ModelAdmin):
     list_display = ("name", "author", "cooking_time", "created_at")
     list_filter = ("author", "tag", "created_at")
     search_fields = ("name", "author__username")
-    filter_horizontal = ("tag", "ingredient")
-    readonly_fields = "created_at"
-    fields = (
-        ("Основное", {"fields": (
-            "name", "author", "image", "text", "cooking_time"
-            )}),
+    filter_horizontal = ("tag",)
+    readonly_fields = ("created_at",)
+    inlines = (RecipeIngredientInline,)
+    fieldsets = (
+        ("Основное", {"fields": ("name", "author", "image", "text", "cooking_time")}),
         (
             "Дополнительно",
             {
                 "classes": ("collapse",),
-                "fields": ("tag", "ingredients", "created_at"),
+                "fields": (
+                    "tag",
+                    "created_at",
+                ),
             },
         ),
     )
@@ -74,8 +71,8 @@ class RecipeIngredientAdmin(admin.ModelAdmin):
 class ShoppingCartAdmin(admin.ModelAdmin):
     """Настройка отображения модели ShoppingCart в админке."""
 
-    list_display = ("user", "recipe", "created_at")
-    list_filter = ("user", "recipe", "created_at")
+    list_display = ("user", "recipe")
+    list_filter = ("user", "recipe")
     search_fields = ("user__username", "recipe__name")
 
 
@@ -97,11 +94,3 @@ class TagAdmin(admin.ModelAdmin):
     list_filter = ("name", "slug")
     search_fields = ("name", "slug")
     prepopulated_fields = {"slug": ("name",)}
-
-
-@admin.register(User)
-class UserAdmin(admin.ModelAdmin):
-    """Настройка отображения модели User в админке."""
-
-    list_display = ("username", "email", "first_name", "last_name")
-    search_fields = ("username", "email", "first_name", "last_name")

@@ -1,5 +1,5 @@
+from django.conf import settings
 from django.db import models
-from django.contrib.auth.models import User
 from django.core.validators import MinValueValidator
 
 
@@ -63,7 +63,7 @@ class Recipe(models.Model):
     """
 
     author = models.ForeignKey(
-        User,
+        settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
         related_name="recipes",
         verbose_name="Автор",
@@ -94,7 +94,7 @@ class Recipe(models.Model):
         verbose_name="Ингредиенты",
         help_text="Список ингредиентов",
     )
-    created_at = models.DateTimsField(auto_now_add=True, verbose_name="Дата создания")
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="Дата создания")
 
     class Meta:
         verbose_name = "Рецепт"
@@ -142,7 +142,7 @@ class Favorite(models.Model):
     """
 
     user = models.ForeignKey(
-        User,
+        settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
         related_name="favorites",
         verbose_name="Пользователь",
@@ -175,7 +175,7 @@ class ShoppingCart(models.Model):
     """
 
     user = models.ForeignKey(
-        User,
+        settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
         related_name="shopping_cart",
         verbose_name="Рецепт",
@@ -209,20 +209,20 @@ class Subscription(models.Model):
     """
 
     user = models.ForeignKey(
-        User,
+        settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
         related_name="subscriptions",
         verbose_name="Подписчик",
         help_text="Пользователь, оформивший подписку",
     )
     author = models.ForeignKey(
-        User,
+        settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
         related_name="following",
         verbose_name="Автор",
         help_text="Пользователь, на которого оформлена подписка",
     )
-    created_at = models.DateTimsField(auto_now_add=True, verbose_name="Дата подписки")
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="Дата подписки")
 
     class Meta:
         verbose_name = "Подписка"

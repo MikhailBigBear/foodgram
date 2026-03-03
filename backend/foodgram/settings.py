@@ -7,7 +7,7 @@ SECRET_KEY = "django-insecure-rr5vo%he8nf1d&0lny%&7-y0!=ul6k)yz(d@todw13o4aub)3c
 
 DEBUG = False
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ["localhost", "127.0.0.1"]
 
 INSTALLED_APPS = [
     "django.contrib.admin",
@@ -17,6 +17,7 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     "django.contrib.staticfiles",
     "rest_framework",
+    "rest_framework.authtoken",
     "django_filters",
     "api",
     "recipes",
