@@ -25,12 +25,15 @@ services:
       - 8000
     restart: always
 
-  frontend:
-    image: mikhailbigbear/foodgram-frontend:latest
+  collectstatic:
+    image: mikhailbigbear/foodgram-backend:latest
+    env_file: .env
     volumes:
-      - static:/var/html/static/
-    command: cp -r /app/build/. /var/html/static/
-    restart: unless-stopped
+      - static:/app/static/
+    command: python manage.py collectstatic --noinput
+    depends_on:
+      - backend
+    restart: "no"
 
   nginx:
     image: nginx:1.25.4-alpine
@@ -41,5 +44,5 @@ services:
       - media:/var/html/media/
       - ./nginx.conf:/etc/nginx/conf.d/default.conf
     depends_on:
-      - backend
+      - collectstatic
     restart: always

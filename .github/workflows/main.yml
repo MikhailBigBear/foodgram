@@ -1,41 +1,73 @@
-name: Docker CI/CD
+name: Deploy Foodgram
 
 on:
   push:
-    branches: [ main ]
-  pull_request:
-    branches: [ main ]
+    branches:
+      - main
+
+env:
+  DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+  DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+  SERVER_IP: ${{ secrets.SERVER_IP }}
+  SSH_USER: ${{ secrets.SSH_USER }}
+  SSH_KEY: ${{ secrets.SSH_KEY }}
 
 jobs:
-  build-and-push:
+  deploy:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
-
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v2
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
+      - name: Checkout
+        uses: actions/checkout@v3
 
       - name: Login to DockerHub
         uses: docker/login-action@v2
         with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
+          username: ${{ env.DOCKERHUB_USERNAME }}
+          password: ${{ env.DOCKERHUB_TOKEN }}
 
-      - name: Build and push backend
-        uses: docker/build-push-action@v4
+      - name: Build and Push Backend
+        uses: docker/build-push-action@v5
         with:
-          context: .
+          context: ./backend
           file: ./backend/Dockerfile
           push: true
-          tags: ${{ secrets.DOCKERHUB_USERNAME }}/foodgram-backend:latest
+          tags: ${{ env.DOCKERHUB_USERNAME }}/foodgram-backend:latest
 
-      - name: Build and push frontend
-        uses: docker/build-push-action@v4
+      - name: Build Frontend
+        uses: actions/setup-node@v3
         with:
-          context: .
-          file: ./frontend/Dockerfile
-          push: true
-          tags: ${{ secrets.DOCKERHUB_USERNAME }}/foodgram-frontend:latest
+          node-version: 16
+      - run: |
+          cd frontend
+          npm install
+          npm run build
+
+      - name: Upload to Server
+        uses: appleboy/scp-action@v0.1.4
+        with:
+          host: ${{ env.SERVER_IP }}
+          username: ${{ env.SSH_USER }}
+          key: ${{ env.SSH_KEY }}
+          source: "frontend/build/"
+          target: "/opt/foodgram/static_build/"
+
+      - name: Deploy on Server
+        uses: appleboy/ssh-action@v0.1.10
+        with:
+          host: ${{ env.SERVER_IP }}
+          username: ${{ env.SSH_USER }}
+          key: ${{ env.SSH_KEY }}
+          script: |
+            cd /opt/foodgram
+            mkdir -p infra
+            cp docker-compose.production.yml infra/docker-compose.yml
+            cp nginx.conf infra/nginx.conf
+            mkdir -p /opt/foodgram/static_build
+            docker stop foodgram-proxy || true
+            docker rm foodgram-proxy || true
+            docker run --rm -v foodgram_static:/target -v /opt/foodgram/static_build:/source alpine cp -r /source/. /target/
+            cd infra
+            docker compose down
+            docker compose pull
+            docker compose up -d
+            echo "✅ Деплой завершён!"
