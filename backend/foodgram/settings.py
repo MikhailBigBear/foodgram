@@ -5,7 +5,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 SECRET_KEY = "django-insecure-rr5vo%he8nf1d&0lny%&7-y0!=ul6k)yz(d@todw13o4aub)3c"
 
-DEBUG = False
+DEBUG = True
 
 ALLOWED_HOSTS = ["localhost", "127.0.0.1"]
 
@@ -53,12 +53,24 @@ TEMPLATES = [
 
 WSGI_APPLICATION = "foodgram.wsgi.application"
 
-DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.sqlite3",
-        "NAME": BASE_DIR / "db.sqlite3",
+if DEBUG:
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.sqlite3",
+            "NAME": BASE_DIR / "db.sqlite3",
+        }
     }
-}
+else:
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.postgresql",
+            "NAME": os.getenv("POSTGRES_DB", "foodgram"),
+            "USER": os.getenv("POSTGRES_USER", "foodgram_user"),
+            "PASSWORD": os.getenv("POSTGRES_PASSWORD", "foodgram_password"),
+            "HOST": os.getenv("DB_HOST", "db"),
+            "PORT": os.getenv("DB_PORT", 5432),
+        }
+    }
 
 AUTH_PASSWORD_VALIDATORS = [
     {

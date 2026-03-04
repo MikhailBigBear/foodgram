@@ -85,7 +85,7 @@ class Recipe(models.Model):
         verbose_name="Время приготовления",
         help_text="Время приготовления в минутах (не менее 1)",
     )
-    tag = models.ManyToManyField(
+    tags = models.ManyToManyField(
         Tag, verbose_name="Теги", help_text="Категории, к которым относится рецепт."
     )
     ingredients = models.ManyToManyField(

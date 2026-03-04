@@ -1,9 +1,10 @@
 from django.contrib import admin
+from django.contrib.auth.admin import UserAdmin
 from .models import User
 
 
 @admin.register(User)
-class UserAdmin(admin.ModelAdmin):
+class CustomUserAdmin(UserAdmin):
     """
     Административная панель для управления пользователями.
 
@@ -12,38 +13,26 @@ class UserAdmin(admin.ModelAdmin):
     - фильтровать и искать пользователей;
     - массово активировать/деактивировать пользователей;
     - редактировать поля пользователя.
-
-    Поля, отображаемые в таблице списка пользователей:
-    - emai;
-    - first_name: Имя пользователя;
-    - last_name: Фамилия пользователя;
-    - is_active: Статус учетной записи;
-    - is_staff: Право доступа к админ-панели;
-    - date_joined: Дата регистрации пользователя.
     """
 
     list_display = (
         "email",
+        "username",
         "first_name",
         "last_name",
         "is_active",
         "is_staff",
-        "date_joined",
     )
-    list_filter = ("is_active", "is_staff", "date_joined", "is_superuser")
-    search_fields = ("email", "first_name", "last_name")
+    search_fields = ("email", "username", "first_name", "last_name")
+    list_filter = ("is_staff", "is_superuser", "is_active")
     ordering = ("email",)
     list_editable = ("is_active", "is_staff")
-    fieldsets = (
-        (None, {"fields": ("email", "password")}),
-        ("Персональные данные", {"fields": ("first_name", "last_name", "avatar")}),
-        ("Права доступа", {"fields": ("is_active",)}),
-        ("Важные даты",
-            {"fields": ("last_login", "date_joined"), "class": ("collapse",)}),
+    fieldsets = UserAdmin.fieldsets
+    add_fieldsets = UserAdmin.add_fieldsets + (
+        (None, {"fields": ("email", "first_name", "last_name")}),
     )
-    readonly_fields = ("last_login", "date_joined")
-    list_per_page = 20
-    actions = ["activate_users", "deactivate_users"]
+    ordering = ("email",)
+    readonly_fields = ("date_joined", "last_login")
 
     @admin.action(description="Активировать пользователей")
     def activate_users(self, request, queryset):

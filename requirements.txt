@@ -1,0 +1,10 @@
+Django==5.1.1
+djangorestframework>=3.12
+django-filter>=21.1
+psycopg2-binary>=2.8
+python-dotenv>=0.19
+djoser==2.1.0
+gunicorn==23.0.0
+webcolors==1.11.1
+Pillow>=9.5.0
+PyYAML>=6.0

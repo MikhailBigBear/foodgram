@@ -19,6 +19,7 @@ from .pagination import StandardResultsSetPagination
 class UserViewSet(viewsets.ReadOnlyModelViewSet):
     """
     ViewSet для работы с пользователями.
+
     Поддерживает:
     - Получение профиля текущего пользователя (/me/)
     - Загрузка и удаление аватара (/me/avatar/)
@@ -199,9 +200,9 @@ class RecipeViewSet(viewsets.ModelViewSet):
 
         content = ""
         for (name, unit), amount in ingredients.items():
-            content += f"{name} ({unit}) — {amount}\n"
+            content += f"{name} ({unit}) — {amount}\\n"
 
-        response = FileResponse(content, content_type="text/plain")
+        response = FileResponse(content.encode("utf-8"), content_type="text/plain")
         response["Content-Disposition"] = 'attachment; filename="shopping_list.txt"'
         return response
 

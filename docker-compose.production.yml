@@ -1,0 +1,45 @@
+version: '3.8'
+
+volumes:
+  pg_data:
+  static:
+  media:
+
+services:
+  db:
+    image: postgres:13-alpine
+    env_file: .env
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    restart: always
+
+  backend:
+    image: mikhailbigbear/foodgram-backend:latest
+    env_file: .env
+    volumes:
+      - static:/app/static/
+      - media:/app/media/
+    depends_on:
+      - db
+    expose:
+      - 8000
+    restart: always
+
+  frontend:
+    image: mikhailbigbear/foodgram-frontend:latest
+    volumes:
+      - static:/var/html/static/
+    command: cp -r /app/build/. /var/html/static/
+    restart: unless-stopped
+
+  nginx:
+    image: nginx:1.25.4-alpine
+    ports:
+      - "80:80"
+    volumes:
+      - static:/var/html/static/
+      - media:/var/html/media/
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf
+    depends_on:
+      - backend
+    restart: always
