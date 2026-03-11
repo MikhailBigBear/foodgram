@@ -14,8 +14,8 @@ class UserManager(BaseUserManager):
         return user
 
     def create_superuser(self, email, password=None, **extra_fields):
-        extra_fields.setdefault("is_staff", True)
-        extra_fields.setdefault("is_superuser", True)
+        extra_fields["is_staff"] = extra_fields.get("is_staff", True)
+        extra_fields["is_superuser"] = extra_fields.get("is_superuser", True)
 
         if extra_fields.get("is_staff") is not True:
             raise ValueError("Суперпользователь должен иметь is_staff=True.")
@@ -26,6 +26,8 @@ class UserManager(BaseUserManager):
 
 
 class User(AbstractUser):
+    """Модель пользователя."""
+
     email = models.EmailField("Email", unique=True)
     first_name = models.CharField("Имя", max_length=150, blank=True)
     last_name = models.CharField("Фамилия", max_length=150, blank=True)

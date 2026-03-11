@@ -1,8 +1,9 @@
-from rest_framework import viewsets, permissions, status, response, decorators
+from rest_framework import viewsets, permissions, status, response, decorators, views
 from rest_framework.authtoken.models import Token
 from rest_framework.authtoken.views import ObtainAuthToken
 from rest_framework.views import APIView
 from django.shortcuts import get_object_or_404
+from django.contrib.auth import authenticate
 from django.http import FileResponse
 from recipes.models import Recipe, Tag, Ingredient, Favorite, ShoppingCart, Subscription
 from users.models import User
@@ -11,6 +12,7 @@ from .serializers import (
     TagSerializer,
     IngredientSerializer,
     UserSerializer,
+    UserRegistrationSerializer,
 )
 from .permissions import IsAuthorOrReadOnly, IsAuthenticated
 from .pagination import StandardResultsSetPagination
@@ -254,12 +256,27 @@ class TokenLoginView(ObtainAuthToken):
     """View для авторизации по токену."""
 
     def post(self, request, *args, **kwargs):
-        """Получает токен для авторизации пользователя."""
-        serializer = self.serializer_class(
-            data=request.data, context={"request": request}
-        )
-        serializer.is_valid(raise_exception=True)
-        user = serializer.validated_data["user"]
+        email = request.data.get("email")
+        password = request.data.get("password")
+
+        if not email:
+            return response.Response(
+                {"email": "Обязательное поле."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        if not password:
+            return response.Response(
+                {"password": "Обязательное поле."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        user = authenticate(request, username=email, password=password)
+        if not user:
+            return response.Response(
+                {"non_field_errors": ["Неверные учётные данные."]},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
         token, created = Token.objects.get_or_create(user=user)
         return response.Response({"token": token.key})
 
@@ -273,3 +290,34 @@ class TokenLogoutView(APIView):
         """Удаляет токен текущего пользователя."""
         request.user.auth_token.delete()
         return response.Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class UserRegistrationView(views.APIView):
+    """
+    View для регистрации нового пользователя.
+
+    Доступно всем (AllowAny).
+    """
+
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request):
+        print("Данные на входе:", request.data)
+        serializer = UserRegistrationSerializer(data=request.data)
+        if serializer.is_valid():
+            print("Валидация прошла успешно")
+            user = serializer.save()
+            return response.Response(
+                {
+                    "id": user.id,
+                    "email": user.email,
+                    "username": user.username,
+                    "first_name": user.first_name,
+                    "last_name": user.last_name,
+                    "is_subscribed": False,
+                    "avatar": None,
+                },
+                status=status.HTTP_201_CREATED,
+            )
+        print("Ошибки сериализатора:", serializer.errors)
+        return response.Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)

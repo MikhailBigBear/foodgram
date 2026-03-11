@@ -28,7 +28,20 @@ services:
     volumes:
       - ../frontend:/app
       - static_value:/app/dist
-    command: sh -c "npm install --legacy-peer-deps && npm run build --legacy-peer-deps && cp -r build/* /app/dist/"
+    command: >
+      sh -c "
+      echo '📁 Текущая директория: $(pwd)'
+      && ls -la
+      && echo '📦 Устанавливаем зависимости...'
+      && npm install --legacy-peer-deps
+      && echo '🏗️ Собираем проект...'
+      && CI=false npm run build --legacy-peer-deps
+      && echo '🔍 Проверяем папку build:'
+      && ls -la build/
+      && echo '🚚 Копируем в volume...'
+      && cp -r build/* /app/dist/
+      && echo '✅ Готово! Файлы скопированы в /app/dist'
+      "
     networks:
       - foodgram-network
     restart: "no"

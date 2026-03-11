@@ -1,4 +1,5 @@
 from rest_framework import serializers
+from rest_framework.exceptions import ValidationError
 from recipes.models import (
     Ingredient,
     Recipe,
@@ -9,6 +10,11 @@ from recipes.models import (
     Subscription,
 )
 from users.models import User
+from django.contrib.auth import get_user_model
+from django.core.exceptions import ValidationError as DjangoValidationError
+from django.contrib.auth.password_validation import validate_password
+
+User = get_user_model()
 
 
 class UserSerializer(serializers.ModelSerializer):
@@ -101,3 +107,55 @@ class RecipeSerializer(serializers.ModelSerializer):
             "text",
             "cooking_time",
         )
+
+
+class UserRegistrationSerializer(serializers.ModelSerializer):
+    """Сериализатор нового пользователя."""
+
+    password = serializers.CharField(
+        write_only=True, required=True, validators=[validate_password]
+    )
+    first_name = serializers.CharField(required=True)
+    last_name = serializers.CharField(required=True)
+
+    class Meta:
+        model = User
+        fields = (
+            "email",
+            "first_name",
+            "last_name",
+            "username",
+            "password",
+        )
+
+    def validate(self, data):
+
+        try:
+            validate_password(data["password"])
+        except DjangoValidationError as e:
+            raise ValidationError({"password": e.messages})
+
+        if User.objects.filter(email=data["email"]).exists():
+            raise ValidationError(
+                {"email": "Пользователь с таким email уже существует."}
+            )
+
+        return data
+
+    def create(self, validated_data):
+        password = validated_data.pop("password")
+        username = validated_data["username"]
+
+        if User.objects.filter(username=username).exists():
+            raise ValidationError(
+                {"username": "Пользователь с таким именем уже существует."}
+            )
+
+        user = User.objects.create_user(
+            username=username,
+            email=validated_data["email"],
+            password=password,
+            first_name=validated_data["first_name"],
+            last_name=validated_data["last_name"]
+        )
+        return user
