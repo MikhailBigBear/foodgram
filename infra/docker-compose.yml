@@ -15,6 +15,7 @@ services:
     depends_on:
       - db
     volumes:
+      - ../data:/app/data
       - static_value:/app/static/
       - media_value:/app/media/
     expose:

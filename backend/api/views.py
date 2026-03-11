@@ -278,7 +278,7 @@ class TokenLoginView(ObtainAuthToken):
             )
 
         token, created = Token.objects.get_or_create(user=user)
-        return response.Response({"token": token.key})
+        return response.Response({"auth_token": token.key})
 
 
 class TokenLogoutView(APIView):

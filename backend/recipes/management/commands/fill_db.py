@@ -1,72 +1,155 @@
 from django.core.management.base import BaseCommand
+from recipes.models import Ingredient, Tag, Recipe, RecipeIngredient
 from users.models import User
-from recipes.models import Recipe, Tag, Ingredient, RecipeIngredient
+import os
+import json
 
 
 class Command(BaseCommand):
-    """Команда для наполнения базы тестовыми данными."""
-
-    help = "Наполняет базу тестовыми данными"
+    help = "Заполняет базу тестовыми данными: пользователи, теги, ингредиенты, рецепты"
 
     def handle(self, *args, **options):
-        user1 = User.objects.create_user(
+        # 1. Создаём суперпользователя
+        admin, created_admin = User.objects.get_or_create(
+            email="admin@example.com",
+            defaults={
+                "username": "admin",
+                "first_name": "Админ",
+                "last_name": "Системы",
+                "is_staff": True,
+                "is_superuser": True,
+            },
+        )
+        if created_admin:
+            admin.set_password("admin")
+            admin.save()
+            self.stdout.write("✅ Суперпользователь создан")
+
+        user1, created_user1 = User.objects.get_or_create(
             email="user1@example.com",
-            username="user1",
-            password="12345",
-            first_name="Иван",
-            last_name="Иванов",
+            defaults={
+                "username": "user1",
+                "first_name": "Иван",
+                "last_name": "Петров",
+                "password": "",
+            },
         )
-        user2 = User.objects.create_user(
+        if created_user1:
+            user1.set_password("password")
+            user1.save()
+            self.stdout.write("✅ Пользователь user1 создан")
+
+        user2, created_user2 = User.objects.get_or_create(
             email="user2@example.com",
-            username="user2",
-            password="12345",
-            first_name="Петр",
-            last_name="Петров",
+            defaults={
+                "username": "user2",
+                "first_name": "Мария",
+                "last_name": "Сидорова",
+                "password": "",
+            },
         )
+        if created_user2:
+            user2.set_password("password")
+            user2.save()
+            self.stdout.write("✅ Пользователь user2 создан")
 
-        tag1 = Tag.objects.create(name="Завтрак", slug="breakfast")
-        tag2 = Tag.objects.create(name="Обед", slug="lunch")
-        tag3 = Tag.objects.create(name="Ужин", slug="dinner")
+        tags_data = [
+            {"name": "Завтрак", "slug": "breakfast"},
+            {"name": "Обед", "slug": "lunch"},
+            {"name": "Ужин", "slug": "dinner"},
+        ]
+        tags = []
+        for tag_data in tags_data:
+            tag, created = Tag.objects.get_or_create(**tag_data)
+            if created:
+                self.stdout.write(f"✅ Тег создан: {tag.name}")
+            tags.append(tag)
 
-        ing1 = Ingredient.objects.create(name="Яйца", measurement_unit="шт")
-        ing2 = Ingredient.objects.create(name="Молоко", measurement_unit="мл")
-        ing3 = Ingredient.objects.create(name="Соль", measurement_unit="г")
-        ing4 = Ingredient.objects.create(name="Сахар", measurement_unit="г")
-        ing5 = Ingredient.objects.create(name="Говядина", measurement_unit="г")
-        ing6 = Ingredient.objects.create(name="Лук", measurement_unit="шт")
+        file_path = "data/ingredients.json"
+        if not os.path.exists(file_path):
+            self.stdout.write(
+                self.style.ERROR(
+                    f"❌ Файл {file_path} не найден. Убедитесь, что папка data смонтирована."
+                )
+            )
+            return
 
-        recipe1 = Recipe.objects.create(
-            author=user1, name="Омлет", text="Жарим яйца с молоком.", cooking_time=10
-        )
-        recipe1.tag.add(tag1)
-        RecipeIngredient.objects.create(recipe=recipe1, ingredient=ing1, amount=2)
-        RecipeIngredient.objects.create(recipe=recipe1, ingredient=ing2, amount=50)
-        RecipeIngredient.objects.create(recipe=recipe1, ingredient=ing3, amount=1)
+        with open(file_path, "r", encoding="utf-8") as f:
+            ingredients_data = json.load(f)
 
-        recipe2 = Recipe.objects.create(
-            author=user2,
-            name="Блины",
-            text="Тесто на молоке, жарим на сковороде.",
-            cooking_time=20,
-        )
-        recipe2.tag.add(tag1)
-        RecipeIngredient.objects.create(recipe=recipe2, ingredient=ing2, amount=200)
-        RecipeIngredient.objects.create(recipe=recipe2, ingredient=ing3, amount=2)
-        RecipeIngredient.objects.create(recipe=recipe2, ingredient=ing4, amount=10)
-
-        recipe3 = Recipe.objects.create(
-            author=user1,
-            name="Гуляш",
-            text="Тушим говядину с луком и специями.",
-            cooking_time=60,
-        )
-        recipe3.tag.add(tag2, tag3)  # Обед и ужин
-        RecipeIngredient.objects.create(recipe=recipe3, ingredient=ing5, amount=500)
-        RecipeIngredient.objects.create(recipe=recipe3, ingredient=ing6, amount=2)
-        RecipeIngredient.objects.create(recipe=recipe3, ingredient=ing3, amount=5)
+        created_ingredients = 0
+        for item in ingredients_data:
+            _, created = Ingredient.objects.get_or_create(
+                name=item["name"], measurement_unit=item["measurement_unit"]
+            )
+            if created:
+                created_ingredients += 1
 
         self.stdout.write(
             self.style.SUCCESS(
-                "База успешно наполнена тестовыми данными с использованием всех тегов."
+                f"✅ Успешно загружено {created_ingredients} ингредиентов."
             )
         )
+
+        sugar = Ingredient.objects.filter(name__iexact="сахар").first()
+        egg = (
+            Ingredient.objects.filter(name__icontains="яйц").first()
+            or Ingredient.objects.first()
+        )
+        milk = Ingredient.objects.filter(name__iexact="молоко").first()
+
+        recipe1, created = Recipe.objects.get_or_create(
+            author=admin,
+            name="Омлет с сыром",
+            defaults={
+                "text": "Взбить яйца, добавить молоко и соль, вылить на сковороду, посыпать сыром.",
+                "cooking_time": 10,
+                "image": "recipes/omelette.jpg",
+            },
+        )
+        if created:
+            recipe1.tags.add(tags[0])
+            if egg and milk:
+                RecipeIngredient.objects.get_or_create(
+                    recipe=recipe1, ingredient=egg, amount=2
+                )
+                RecipeIngredient.objects.get_or_create(
+                    recipe=recipe1, ingredient=milk, amount=100
+                )
+            self.stdout.write("✅ Рецепт 'Омлет' создан")
+
+        recipe2, created = Recipe.objects.get_or_create(
+            author=user1,
+            name="Борщ",
+            defaults={
+                "text": "Сварить бульон, добавить свёклу, капусту, картофель, морковь.",
+                "cooking_time": 90,
+                "image": "recipes/borscht.jpg",
+            },
+        )
+        if created:
+            recipe2.tags.add(tags[1])
+            if egg:
+                RecipeIngredient.objects.get_or_create(
+                    recipe=recipe2, ingredient=egg, amount=1
+                )
+            self.stdout.write("✅ Рецепт 'Борщ' создан")
+
+        recipe3, created = Recipe.objects.get_or_create(
+            author=user2,
+            name="Чай с лимоном",
+            defaults={
+                "text": "Заварить чай, добавить ломтик лимона и сахар по вкусу.",
+                "cooking_time": 5,
+                "image": "recipes/tea.jpg",
+            },
+        )
+        if created:
+            recipe3.tags.add(tags[2])
+            if sugar:
+                RecipeIngredient.objects.get_or_create(
+                    recipe=recipe3, ingredient=sugar, amount=2
+                )
+            self.stdout.write("✅ Рецепт 'Чай' создан")
+
+        self.stdout.write("✅ База данных полностью заполнена тестовыми данными!")
