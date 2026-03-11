@@ -137,7 +137,7 @@ class RecipeViewSet(viewsets.ModelViewSet):
         tags = self.request.query_params.getlist("tags")
 
         if is_favorited == "1" and self.request.user.is_authenticated:
-            queryset = queryset.filter(favorites__user=self.request.user)
+            queryset = queryset.filter(favorited_by=self.request.user)
 
         if is_in_shopping_cart == "1" and self.request.user.is_authenticated:
             queryset = queryset.filter(shopping_cart__user=self.request.user)

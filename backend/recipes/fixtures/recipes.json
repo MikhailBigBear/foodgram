@@ -1,0 +1,47 @@
+[
+{
+    "model": "recipes.recipe",
+    "pk": 1,
+    "fields": {
+        "author": 1,
+        "name": "Омлет с сыром",
+        "image": "recipes/omelette.jpg",
+        "text": "Взбить яйца, добавить молоко и соль, вылить на сковороду, посыпать сыром.",
+        "cooking_time": 10,
+        "created_at": "2026-03-11T10:26:21.518Z",
+        "tags": [
+            1
+        ]
+    }
+},
+{
+    "model": "recipes.recipe",
+    "pk": 2,
+    "fields": {
+        "author": 2,
+        "name": "Борщ",
+        "image": "recipes/borscht.jpg",
+        "text": "Сварить бульон, добавить свёклу, капусту, картофель, морковь.",
+        "cooking_time": 90,
+        "created_at": "2026-03-11T10:26:21.526Z",
+        "tags": [
+            2
+        ]
+    }
+},
+{
+    "model": "recipes.recipe",
+    "pk": 3,
+    "fields": {
+        "author": 3,
+        "name": "Чай с лимоном",
+        "image": "recipes/tea.jpg",
+        "text": "Заварить чай, добавить ломтик лимона и сахар по вкусу.",
+        "cooking_time": 5,
+        "created_at": "2026-03-11T10:26:21.533Z",
+        "tags": [
+            3
+        ]
+    }
+}
+]

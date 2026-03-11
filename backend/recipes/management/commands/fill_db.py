@@ -9,7 +9,6 @@ class Command(BaseCommand):
     help = "Заполняет базу тестовыми данными: пользователи, теги, ингредиенты, рецепты"
 
     def handle(self, *args, **options):
-        # 1. Создаём суперпользователя
         admin, created_admin = User.objects.get_or_create(
             email="admin@example.com",
             defaults={
@@ -23,7 +22,9 @@ class Command(BaseCommand):
         if created_admin:
             admin.set_password("admin")
             admin.save()
-            self.stdout.write("✅ Суперпользователь создан")
+            self.stdout.write(
+                f"✅ Суперпользователь создан: ID={admin.pk}, email={admin.email}"
+            )
 
         user1, created_user1 = User.objects.get_or_create(
             email="user1@example.com",
@@ -37,7 +38,9 @@ class Command(BaseCommand):
         if created_user1:
             user1.set_password("password")
             user1.save()
-            self.stdout.write("✅ Пользователь user1 создан")
+            self.stdout.write(
+                f"✅ Пользователь создан: ID={user1.pk}, email={user1.email}"
+            )
 
         user2, created_user2 = User.objects.get_or_create(
             email="user2@example.com",
@@ -51,7 +54,9 @@ class Command(BaseCommand):
         if created_user2:
             user2.set_password("password")
             user2.save()
-            self.stdout.write("✅ Пользователь user2 создан")
+            self.stdout.write(
+                f"✅ Пользователь создан: ID={user2.pk}, email={user2.email}"
+            )
 
         tags_data = [
             {"name": "Завтрак", "slug": "breakfast"},
@@ -153,3 +158,6 @@ class Command(BaseCommand):
             self.stdout.write("✅ Рецепт 'Чай' создан")
 
         self.stdout.write("✅ База данных полностью заполнена тестовыми данными!")
+        print("\n🔍 Проверка: все пользователи в БД после создания:")
+        for u in User.objects.all():
+            print(f" - {u.email} ({u.username}) | superuser={u.is_superuser}")

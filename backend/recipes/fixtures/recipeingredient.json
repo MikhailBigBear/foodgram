@@ -1,0 +1,38 @@
+[
+{
+    "model": "recipes.recipeingredient",
+    "pk": 1,
+    "fields": {
+        "recipe": 1,
+        "ingredient": 905,
+        "amount": 2.0
+    }
+},
+{
+    "model": "recipes.recipeingredient",
+    "pk": 2,
+    "fields": {
+        "recipe": 1,
+        "ingredient": 1032,
+        "amount": 100.0
+    }
+},
+{
+    "model": "recipes.recipeingredient",
+    "pk": 3,
+    "fields": {
+        "recipe": 2,
+        "ingredient": 905,
+        "amount": 1.0
+    }
+},
+{
+    "model": "recipes.recipeingredient",
+    "pk": 4,
+    "fields": {
+        "recipe": 3,
+        "ingredient": 1546,
+        "amount": 2.0
+    }
+}
+]

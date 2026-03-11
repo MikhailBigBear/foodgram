@@ -14,6 +14,17 @@ services:
     env_file: .env
     depends_on:
       - db
+    command: >
+      sh -c "
+      python manage.py migrate &&
+      python manage.py loaddata users/fixtures/users.json &&
+      python manage.py loaddata recipes/fixtures/ingredients.json &&
+      python manage.py loaddata recipes/fixtures/tags.json &&
+      python manage.py loaddata recipes/fixtures/recipes.json &&
+      python manage.py loaddata recipes/fixtures/recipeingredient.json ||
+      echo '❗ Фикстуры загружены или не найдены' &&
+      gunicorn foodgram.wsgi:application --bind 0.0.0.0:8000 --log-level debug --access-logfile - --error-logfile -
+      "
     volumes:
       - ../data:/app/data
       - static_value:/app/static/
