@@ -13,6 +13,7 @@ from .serializers import (
     IngredientSerializer,
     UserSerializer,
     UserRegistrationSerializer,
+    RecipeCreateSerializer,
 )
 from .permissions import IsAuthorOrReadOnly, IsAuthenticated
 from .pagination import StandardResultsSetPagination
@@ -124,9 +125,13 @@ class RecipeViewSet(viewsets.ModelViewSet):
     queryset = Recipe.objects.prefetch_related(
         "tags", "ingredients", "recipeingredient_set"
     )
-    serializer_class = RecipeSerializer
     permission_classes = [IsAuthorOrReadOnly]
     pagination_class = StandardResultsSetPagination
+
+    def get_serializer_class(self):
+        if self.action in ("create", "update", "partial_update"):
+            return RecipeCreateSerializer
+        return RecipeSerializer
 
     def get_queryset(self):
         """Фильтрует рецепты по параметрам запроса."""
@@ -137,10 +142,16 @@ class RecipeViewSet(viewsets.ModelViewSet):
         tags = self.request.query_params.getlist("tags")
 
         if is_favorited == "1" and self.request.user.is_authenticated:
-            queryset = queryset.filter(favorited_by=self.request.user)
+            favorite_recipe_ids = Favorite.objects.filter(
+                user=self.request.user
+            ).values_list("recipe_id", flat=True)
+            queryset = queryset.filter(id__in=favorite_recipe_ids)
 
         if is_in_shopping_cart == "1" and self.request.user.is_authenticated:
-            queryset = queryset.filter(shopping_cart__user=self.request.user)
+            cart_recipe_ids = ShoppingCart.objects.filter(
+                user=self.request.user
+            ).values_list("recipe_id", flat=True)
+            queryset = queryset.filter(id__in=cart_recipe_ids)
 
         if author_id:
             queryset = queryset.filter(author_id=author_id)
@@ -219,6 +230,17 @@ class SubscriptionViewSet(viewsets.ViewSet):
     """
 
     permission_classes = [IsAuthenticated]
+    pagination_class = StandardResultsSetPagination
+
+    def paginate_queryset(self, queryset):
+        if not self.paginator:
+            return None
+        return self.paginator.paginate_queryset(
+            queryset, self.request, view=self
+        )
+    
+    def get_paginated_response(self, data):
+        return self.paginator.get_paginated_response(data)
 
     @decorators.action(detail=False, methods=["get"], url_path="subscriptions")
     def subscriptions(self, request):
@@ -261,13 +283,11 @@ class TokenLoginView(ObtainAuthToken):
 
         if not email:
             return response.Response(
-                {"email": "Обязательное поле."},
-                status=status.HTTP_400_BAD_REQUEST
+                {"email": "Обязательное поле."}, status=status.HTTP_400_BAD_REQUEST
             )
         if not password:
             return response.Response(
-                {"password": "Обязательное поле."},
-                status=status.HTTP_400_BAD_REQUEST
+                {"password": "Обязательное поле."}, status=status.HTTP_400_BAD_REQUEST
             )
 
         user = authenticate(request, username=email, password=password)

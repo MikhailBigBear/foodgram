@@ -4,14 +4,24 @@ from . import views
 
 router = DefaultRouter()
 
+router.register(r"tags", views.TagViewSet, basename="tags")
 router.register(r"ingredients", views.IngredientViewSet, basename="ingredients")
 router.register(r"recipes", views.RecipeViewSet, basename="recipes")
-router.register(r"tags", views.TagViewSet, basename="tags")
-router.register(
-    r"users/subscriptions", views.SubscriptionViewSet, basename="subscriptions"
-)
+router.register(r"users", views.UserViewSet, basename="user")
 
 urlpatterns = [
+    path(
+        "users/subscriptions/",
+        views.SubscriptionViewSet.as_view({"get": "subscriptions"}),
+        name="subscriptions",
+    ),
+    path(
+        "users/<int:pk>/subscribe/",
+        views.SubscriptionViewSet.as_view(
+            {"post": "subscribe", "delete": "unsubscribe"}
+        ),
+        name="subscribe",
+    ),
     path("", include(router.urls)),
     path("auth/token/login/", views.TokenLoginView.as_view(), name="token_login"),
     path("auth/token/logout/", views.TokenLogoutView.as_view(), name="token_logout"),

@@ -9,6 +9,7 @@ from recipes.models import (
     Favorite,
     Subscription,
 )
+from .fields import Base64ImageField
 from users.models import User
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError as DjangoValidationError
@@ -109,6 +110,101 @@ class RecipeSerializer(serializers.ModelSerializer):
         )
 
 
+class RecipesIngredientCreateSerializer(serializers.ModelSerializer):
+    id = serializers.PrimaryKeyRelatedField(
+        queryset=Ingredient.objects.all(), source="ingredient"
+    )
+    amount = serializers.IntegerField(min_value=1)
+
+    class Meta:
+        model = RecipeIngredient
+        fields = ("id", "amount")
+
+
+class RecipeCreateSerializer(serializers.ModelSerializer):
+    ingredients = RecipesIngredientCreateSerializer(many=True)
+    tags = serializers.PrimaryKeyRelatedField(queryset=Tag.objects.all(), many=True)
+    image = Base64ImageField()
+    author = serializers.HiddenField(default=serializers.CurrentUserDefault())
+
+    class Meta:
+        model = Recipe
+        fields = (
+            "id",
+            "author",
+            "name",
+            "text",
+            "ingredients",
+            "tags",
+            "image",
+            "cooking_time",
+        )
+
+    def validate_ingredients(self, value):
+        if not value:
+            raise ValidationError("Нужно добавить хотя бы один ингредиент.")
+        ingredient_ids = [item["ingredient"].id for item in value]
+        if len(set(ingredient_ids)) != len(ingredient_ids):
+            raise ValidationError("Ингредиенты не должны повторяться.")
+        return value
+
+    def validate_tags(self, value):
+        if not value:
+            raise ValidationError("Нужно выбрать хотя бы один тег.")
+        return value
+
+    def create(self, validated_data):
+        ingredients_data = validated_data.pop("ingredients")
+        tags_data = validated_data.pop("tags")
+
+        recipe = Recipe.objects.create(**validated_data)
+        recipe.tags.set(tags_data)
+
+        RecipeIngredient.objects.bulk_create(
+            [
+                RecipeIngredient(
+                    recipe=recipe, ingredient=item["ingredient"], amount=item["amount"]
+                )
+                for item in ingredients_data
+            ]
+        )
+
+        return recipe
+
+    def update(self, instance, validated_data):
+        ingredients_data = validated_data.pop("ingredients", None)
+        tags_data = validated_data.pop("tags", None)
+
+        instance.name = validated_data.get("name", instance.name)
+        instance.text = validated_data.get("text", instance.text)
+        instance.cooking_time = validated_data.get(
+            "cooking_time", instance.cooking_time
+        )
+        instance.image = validated_data.get("image", instance.image)
+        instance.save()
+
+        if tags_data is not None:
+            instance.tags.set(tags_data)
+
+        if ingredients_data is not None:
+            instance.recipeingredient_set.all().delete()
+            RecipeIngredient.objects.bulk_create(
+                [
+                    RecipeIngredient(
+                        recipe=instance,
+                        ingredient=item["ingredient"],
+                        amount=item["amount"],
+                    )
+                    for item in ingredients_data
+                ]
+            )
+
+        return instance
+
+    def to_representation(self, instance):
+        return RecipeSerializer(instance, context=self.context).data
+
+
 class UserRegistrationSerializer(serializers.ModelSerializer):
     """Сериализатор нового пользователя."""
 
@@ -156,6 +252,6 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
             email=validated_data["email"],
             password=password,
             first_name=validated_data["first_name"],
-            last_name=validated_data["last_name"]
+            last_name=validated_data["last_name"],
         )
         return user
