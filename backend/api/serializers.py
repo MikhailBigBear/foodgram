@@ -18,9 +18,7 @@ from django.contrib.auth.password_validation import validate_password
 User = get_user_model()
 
 
-class UserSerializer(serializers.ModelSerializer):
-    """Сериализатор для модели User."""
-
+class UserShortSerializer(serializers.ModelSerializer):
     is_subscribed = serializers.SerializerMethodField()
 
     def get_is_subscribed(self, obj):
@@ -75,10 +73,14 @@ class RecipeSerializer(serializers.ModelSerializer):
     """Сериализатор для модели Recipe."""
 
     tags = TagSerializer(many=True)
-    author = UserSerializer()
+    author = serializers.SerializerMethodField()
     ingredients = RecipeIngredientSerializer(many=True, source="recipeingredient_set")
     is_favorited = serializers.SerializerMethodField()
     is_in_shopping_cart = serializers.SerializerMethodField()
+
+    def get_author(self, obj):
+        from .serializers import UserShortSerializer
+        return UserShortSerializer(obj.author, context=self.context).data
 
     def get_is_favorited(self, obj):
         """Добавлен ли рецепт в избранное авторизованным пользователем."""
@@ -107,6 +109,48 @@ class RecipeSerializer(serializers.ModelSerializer):
             "image",
             "text",
             "cooking_time",
+        )
+
+
+class UserSerializer(serializers.ModelSerializer):
+    """Сериализатор для модели User."""
+
+    is_subscribed = serializers.SerializerMethodField()
+    recipes = serializers.SerializerMethodField()
+
+    def get_is_subscribed(self, obj):
+        request = self.context.get("request")
+        if request and request.user.is_authenticated:
+            return Subscription.objects.filter(user=request.user, author=obj).exists()
+        return False
+
+    def get_recipes(self, obj):
+        if not self.context or 'request' not in self.context:
+            return []
+
+        recipes_limit = self.context["request"].query_params.get("recipes_limit")
+        recipes = obj.recipes.all()
+
+        if not recipes.exists():
+            return []
+
+        if recipes_limit and recipes_limit.isdigit():
+            recipes = recipes[:int(recipes_limit)]
+
+        from .serializers import RecipeSerializer
+        return RecipeSerializer(recipes, many=True, context=self.context).data
+
+    class Meta:
+        model = User
+        fields = (
+            "id",
+            "username",
+            "email",
+            "first_name",
+            "last_name",
+            "is_subscribed",
+            "avatar",
+            "recipes",
         )
 
 
@@ -201,9 +245,6 @@ class RecipeCreateSerializer(serializers.ModelSerializer):
 
         return instance
 
-    def to_representation(self, instance):
-        return RecipeSerializer(instance, context=self.context).data
-
 
 class UserRegistrationSerializer(serializers.ModelSerializer):
     """Сериализатор нового пользователя."""
@@ -225,7 +266,6 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
         )
 
     def validate(self, data):
-
         try:
             validate_password(data["password"])
         except DjangoValidationError as e:

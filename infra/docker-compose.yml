@@ -36,20 +36,18 @@ services:
     working_dir: /app
     volumes:
       - ../frontend:/app
-      - static_value:/app/dist
+      - static_value:/var/html
     command: >
       sh -c "
-      echo '📁 Текущая директория: $(pwd)'
-      && ls -la
-      && echo '📦 Устанавливаем зависимости...'
-      && npm install --legacy-peer-deps
-      && echo '🏗️ Собираем проект...'
-      && CI=false npm run build --legacy-peer-deps
-      && echo '🔍 Проверяем папку build:'
-      && ls -la build/
-      && echo '🚚 Копируем в volume...'
-      && cp -r build/* /app/dist/
-      && echo '✅ Готово! Файлы скопированы в /app/dist'
+      echo '📦 Устанавливаем зависимости...' &&
+      npm install --legacy-peer-deps &&
+      echo '🏗️ Собираем проект...' &&
+      CI=false npm run build --legacy-peer-deps &&
+      echo '🔍 Проверяем папку build:' &&
+      ls -la build/ &&
+      echo '🚚 Копируем сборку в /var/html...' &&
+      cp -r build/* /var/html/ &&
+      echo '✅ Готово! Файлы в /var/html'
       "
     networks:
       - foodgram-network
@@ -64,7 +62,7 @@ services:
       - backend
     volumes:
       - ./nginx.conf:/etc/nginx/conf.d/default.conf
-      - static_value:/var/html/static/
+      - static_value:/var/html
       - media_value:/var/html/media/
     networks:
       - foodgram-network

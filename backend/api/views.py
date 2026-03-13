@@ -1,4 +1,6 @@
-from rest_framework import viewsets, permissions, status, response, decorators, views
+from rest_framework import (
+    viewsets, permissions, status, response, decorators, views, generics
+)
 from rest_framework.authtoken.models import Token
 from rest_framework.authtoken.views import ObtainAuthToken
 from rest_framework.views import APIView
@@ -220,7 +222,7 @@ class RecipeViewSet(viewsets.ModelViewSet):
         return response
 
 
-class SubscriptionViewSet(viewsets.ViewSet):
+class SubscriptionViewSet(viewsets.GenericViewSet):
     """
     ViewSet для работы с подписками.
 
@@ -232,16 +234,6 @@ class SubscriptionViewSet(viewsets.ViewSet):
     permission_classes = [IsAuthenticated]
     pagination_class = StandardResultsSetPagination
 
-    def paginate_queryset(self, queryset):
-        if not self.paginator:
-            return None
-        return self.paginator.paginate_queryset(
-            queryset, self.request, view=self
-        )
-    
-    def get_paginated_response(self, data):
-        return self.paginator.get_paginated_response(data)
-
     @decorators.action(detail=False, methods=["get"], url_path="subscriptions")
     def subscriptions(self, request):
         """Возвращает список подписок текущего пользователя с пагинацией."""
@@ -252,12 +244,10 @@ class SubscriptionViewSet(viewsets.ViewSet):
         )
 
         page = self.paginate_queryset(subscriptions)
-        if page is not None:
-            serializer = UserSerializer(
-                [sub.author for sub in page], many=True, context={"request": request}
-            )
-            return self.get_paginated_response(serializer.data)
-        return response.Response([], status=status.HTTP_200_OK)
+        serializer = UserSerializer(
+            [sub.author for sub in page], many=True, context={"request": request}
+        )
+        return self.get_paginated_response(serializer.data)
 
     @decorators.action(detail=True, methods=["post"], url_path="subscribe")
     def subscribe(self, request, pk=None):
