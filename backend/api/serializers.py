@@ -169,6 +169,7 @@ class UserSerializer(serializers.ModelSerializer):
             "last_name",
             "is_subscribed",
             "recipes",
+            "avatar",
         )
 
 

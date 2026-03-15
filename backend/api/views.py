@@ -1,6 +1,9 @@
 from rest_framework import (
     viewsets, permissions, status, response, decorators, views, mixins
 )
+from rest_framework.parsers import JSONParser, MultiPartParser, FormParser
+import base64
+from django.core.files.base import ContentFile
 from rest_framework.authtoken.models import Token
 from rest_framework.authtoken.views import ObtainAuthToken
 from rest_framework.views import APIView
@@ -43,17 +46,61 @@ class UserViewSet(
         serializer = self.get_serializer(request.user)
         return response.Response(serializer.data)
 
-    @decorators.action(detail=False, methods=["put"], url_path="me/avatar")
+    @decorators.action(
+        detail=False,
+        methods=["put"],
+        url_path="me/avatar",
+        parser_classes=[JSONParser, MultiPartParser, FormParser],
+    )
     def set_avatar(self, request):
-        """Загружает аватар пользователя в формате Base64."""
+        print("📥 Начало set_avatar — Content-Type:", request.content_type)
+        print("📄 request.data:", dict(request.data))
+        print("🔑 Ключи:", request.data.keys())
+
         user = request.user
-        avatar = request.data.get("avatar")
-        if not avatar:
+        avatar_data = request.data.get("avatar")
+
+        if not avatar_data:
             return response.Response(
-                {"avatar": ["Обязательное поле."]}, status=status.HTTP_400_BAD_REQUEST
+                {"avatar": ["Обязательное поле."]},
+                status=status.HTTP_400_BAD_REQUEST
             )
-        user.avatar = avatar
-        user.save()
+
+        if isinstance(avatar_data, str):
+        # Обработка Base64
+            if not avatar_data.startswith('data:image'):
+                return response.Response(
+                    {"avatar": ["Некорректный формат изображения."]},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            try:
+                format, imgstr = avatar_data.split(';base64,')
+                ext = format.split('/')[-1]
+                file_data = ContentFile(
+                    base64.b64decode(imgstr),
+                    name=f'avatar_{user.id}.{ext}'
+                )
+            except Exception as e:
+                print(f"❌ Ошибка декодирования: {e}")
+                return response.Response(
+                    {"avatar": ["Ошибка декодирования изображения."]},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+        else:
+        # Если прислали файл напрямую
+            if hasattr(avatar_data, 'content_type') and avatar_data.content_type.startswith('image/'):
+                file_data = avatar_data
+                ext = avatar_data.name.split('.')[-1] if '.' in avatar_data.name else 'jpg'
+                file_data.name = f'avatar_{user.id}.{ext}'
+            else:
+                return response.Response(
+                    {"avatar": ["Файл должен быть изображением."]},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+        user.avatar.save(file_data.name, file_data, save=True)
+        print(f"✅ Аватар сохранён: {user.avatar.path}")
+
         serializer = self.get_serializer(user)
         return response.Response({"avatar": serializer.data["avatar"]})
 
@@ -61,7 +108,13 @@ class UserViewSet(
     def delete_avatar(self, request):
         """Удаляет аватар пользователя."""
         user = request.user
-        user.avatar.delete(save=True)
+
+        if user.avatar and user.avatar.name != "defaults/avatar.png":
+            user.avatar.delete(save=False)
+
+        user.avatar = None
+        user.save()
+
         return response.Response(status=status.HTTP_204_NO_CONTENT)
 
     @decorators.action(detail=False, methods=["post"], url_path="set_password")

@@ -7,9 +7,20 @@ router = DefaultRouter()
 router.register(r"tags", views.TagViewSet, basename="tags")
 router.register(r"ingredients", views.IngredientViewSet, basename="ingredients")
 router.register(r"recipes", views.RecipeViewSet, basename="recipes")
-router.register(r"users", views.UserViewSet, basename="user")
 
 urlpatterns = [
+    path("users/", views.UserViewSet.as_view({"get": "list"}), name="user-list"),
+    path(
+        "users/<int:pk>/",
+        views.UserViewSet.as_view({"get": "retrieve"}),
+        name="user-detail",
+    ),
+    path("users/me/", views.UserViewSet.as_view({"get": "me"}), name="user-me"),
+    path(
+        "users/me/avatar/",
+        views.UserViewSet.as_view({"put": "set_avatar", "delete": "delete_avatar"}),
+        name="user-avatar",
+    ),
     path(
         "users/subscriptions/",
         views.SubscriptionViewSet.as_view({"get": "subscriptions"}),
