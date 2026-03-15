@@ -23,9 +23,19 @@ class UserShortSerializer(serializers.ModelSerializer):
 
     def get_is_subscribed(self, obj):
         request = self.context.get("request")
-        if request and request.user.is_authenticated:
-            return Subscription.objects.filter(user=request.user, author=obj).exists()
-        return False
+        if not request:
+            print("🔴 get_is_subscribed: context['request'] отсутствует")
+            return False
+        if not request.user.is_authenticated:
+            print("🟠 get_is_subscribed: пользователь не авторизован")
+            return False
+        try:
+            result = Subscription.objects.filter(user=request.user, author=obj).exists()
+            print(f"🟢 get_is_subscribed: {request.user} подписан на {obj}? {result}")
+            return result
+        except Exception as e:
+            print(f"🔴 Ошибка в get_is_subscribed: {e}")
+            return False
 
     class Meta:
         model = User
@@ -80,21 +90,22 @@ class RecipeSerializer(serializers.ModelSerializer):
 
     def get_author(self, obj):
         from .serializers import UserShortSerializer
+
         return UserShortSerializer(obj.author, context=self.context).data
 
     def get_is_favorited(self, obj):
         """Добавлен ли рецепт в избранное авторизованным пользователем."""
         request = self.context.get("request")
-        if request and request.user.is_authenticated:
-            return Favorite.objects.filter(user=request.user, recipe=obj).exists()
-        return False
+        if not request or not request.user.is_authenticated:
+            return False
+        return Favorite.objects.filter(user=request.user, recipe=obj).exists()
 
     def get_is_in_shopping_cart(self, obj):
         """Добавлен ли рецепт в список покупок авторизованным пользователем."""
         request = self.context.get("request")
-        if request and request.user.is_authenticated:
-            return ShoppingCart.objects.filter(user=request.user, recipe=obj).exists()
-        return False
+        if not request or not request.user.is_authenticated:
+            return False
+        return ShoppingCart.objects.filter(user=request.user, recipe=obj).exists()
 
     class Meta:
         model = Recipe
@@ -125,20 +136,28 @@ class UserSerializer(serializers.ModelSerializer):
         return False
 
     def get_recipes(self, obj):
-        if not self.context or 'request' not in self.context:
+        print(f"📄 get_recipes вызван для {obj}")
+        request = self.context.get("request")
+        if not request:
+            print("🔴 get_recipes: context['request'] отсутствует")
             return []
 
-        recipes_limit = self.context["request"].query_params.get("recipes_limit")
+        recipes_limit = request.query_params.get("recipes_limit")
         recipes = obj.recipes.all()
+
+        print(f"📄 get_recipes: найдено рецептов у {obj}: {recipes.count()}")
 
         if not recipes.exists():
             return []
 
         if recipes_limit and recipes_limit.isdigit():
             recipes = recipes[:int(recipes_limit)]
+            print(f"✂️  get_recipes: ограничено до {recipes_limit}")
 
         from .serializers import RecipeSerializer
-        return RecipeSerializer(recipes, many=True, context=self.context).data
+        serializer = RecipeSerializer(recipes, many=True, context=self.context)
+        print(f"✅ get_recipes: сериализовано {len(serializer.data)} рецептов")
+        return serializer.data
 
     class Meta:
         model = User
@@ -149,7 +168,6 @@ class UserSerializer(serializers.ModelSerializer):
             "first_name",
             "last_name",
             "is_subscribed",
-            "avatar",
             "recipes",
         )
 

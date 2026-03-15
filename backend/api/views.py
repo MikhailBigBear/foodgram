@@ -1,5 +1,5 @@
 from rest_framework import (
-    viewsets, permissions, status, response, decorators, views, generics
+    viewsets, permissions, status, response, decorators, views, mixins
 )
 from rest_framework.authtoken.models import Token
 from rest_framework.authtoken.views import ObtainAuthToken
@@ -21,7 +21,9 @@ from .permissions import IsAuthorOrReadOnly, IsAuthenticated
 from .pagination import StandardResultsSetPagination
 
 
-class UserViewSet(viewsets.ReadOnlyModelViewSet):
+class UserViewSet(
+    viewsets.GenericViewSet, mixins.ListModelMixin, mixins.RetrieveModelMixin
+):
     """
     ViewSet для работы с пользователями.
 
@@ -236,17 +238,40 @@ class SubscriptionViewSet(viewsets.GenericViewSet):
 
     @decorators.action(detail=False, methods=["get"], url_path="subscriptions")
     def subscriptions(self, request):
-        """Возвращает список подписок текущего пользователя с пагинацией."""
+        print("🔵 Начало subscriptions() — request.user:", request.user)
+        print("🔹 context до сериализации:", self.get_serializer_context())
+        print("📌 query_params:", dict(request.query_params))
+
         subscriptions = (
             Subscription.objects.filter(user=request.user)
-            .select_related("author", "author__avatar")
-            .prefetch_related("author__recipes")
+            .select_related("author")
+            .prefetch_related(
+                "author__recipes",
+                "author__recipes__tags",
+                "author__recipes__recipeingredient_set__ingredient",
+            )
         )
 
-        page = self.paginate_queryset(subscriptions)
-        serializer = UserSerializer(
-            [sub.author for sub in page], many=True, context={"request": request}
-        )
+        try:
+            page = self.paginate_queryset(subscriptions)
+            print(f"✅ paginate_queryset вернул {len(page)} объектов" if page else "✅ page пустой")
+        except Exception as e:
+            print(f"🔴 ОШИБКА в paginate_queryset: {e}")
+            return response.Response(
+                {"error": "Ошибка пагинации"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+        if page is None or not page:
+            return self.get_paginated_response([])
+        authors = [sub.author for sub in page]
+
+        print(f"📄 Найдено подписок: {len(authors)}")
+        for author in authors:
+            print(f" — Автор: {author}, рецептов: {author.recipes.count()}")
+
+        serializer = UserSerializer(authors, many=True, context={"request": request})
+        print("✅ Сериализатор создан")
+
         return self.get_paginated_response(serializer.data)
 
     @decorators.action(detail=True, methods=["post"], url_path="subscribe")
