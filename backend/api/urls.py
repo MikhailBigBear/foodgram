@@ -33,6 +33,13 @@ urlpatterns = [
         ),
         name="subscribe",
     ),
+    path(
+        "recipes/<int:pk>/shopping_cart/",
+        views.RecipeViewSet.as_view(
+            {"post": "add_to_shopping_cart", "delete": "remove_from_shopping_cart"}
+        ),
+        name="recipe-shopping-cart",
+    ),
     path("", include(router.urls)),
     path("auth/token/login/", views.TokenLoginView.as_view(), name="token_login"),
     path("auth/token/logout/", views.TokenLogoutView.as_view(), name="token_logout"),

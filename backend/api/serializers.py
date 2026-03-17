@@ -187,7 +187,7 @@ class RecipesIngredientCreateSerializer(serializers.ModelSerializer):
 class RecipeCreateSerializer(serializers.ModelSerializer):
     ingredients = RecipesIngredientCreateSerializer(many=True)
     tags = serializers.PrimaryKeyRelatedField(queryset=Tag.objects.all(), many=True)
-    image = Base64ImageField()
+    image = Base64ImageField(required=False)
     author = serializers.HiddenField(default=serializers.CurrentUserDefault())
 
     class Meta:

@@ -7,9 +7,10 @@ from django.core.files.base import ContentFile
 from rest_framework.authtoken.models import Token
 from rest_framework.authtoken.views import ObtainAuthToken
 from rest_framework.views import APIView
+from rest_framework.permissions import AllowAny
 from django.shortcuts import get_object_or_404
 from django.contrib.auth import authenticate
-from django.http import FileResponse
+from django.http import HttpResponse
 from recipes.models import Recipe, Tag, Ingredient, Favorite, ShoppingCart, Subscription
 from users.models import User
 from .serializers import (
@@ -20,7 +21,7 @@ from .serializers import (
     UserRegistrationSerializer,
     RecipeCreateSerializer,
 )
-from .permissions import IsAuthorOrReadOnly, IsAuthenticated
+from .permissions import IsAuthenticated
 from .pagination import StandardResultsSetPagination
 
 
@@ -182,13 +183,17 @@ class RecipeViewSet(viewsets.ModelViewSet):
     queryset = Recipe.objects.prefetch_related(
         "tags", "ingredients", "recipeingredient_set"
     )
-    permission_classes = [IsAuthorOrReadOnly]
     pagination_class = StandardResultsSetPagination
 
     def get_serializer_class(self):
         if self.action in ("create", "update", "partial_update"):
             return RecipeCreateSerializer
         return RecipeSerializer
+
+    def get_permissions(self):
+        if self.action in ["list", "retrieve"]:
+            return [permissions.AllowAny()]
+        return [permissions.IsAuthenticated()]
 
     def get_queryset(self):
         """Фильтрует рецепты по параметрам запроса."""
@@ -259,20 +264,22 @@ class RecipeViewSet(viewsets.ModelViewSet):
             shopping_cart__user=request.user
         ).prefetch_related("recipeingredient_set__ingredient")
 
+        recipes = Recipe.objects.filter(
+            shopping_cart__user=request.user
+        ).prefetch_related("recipeingredient_set__ingredient")
+
         ingredients = {}
         for recipe in recipes:
             for ri in recipe.recipeingredient_set.all():
                 key = (ri.ingredient.name, ri.ingredient.measurement_unit)
-                if key in ingredients:
-                    ingredients[key] += ri.amount
-                else:
-                    ingredients[key] = ri.amount
+                ingredients[key] = ingredients.get(key, 0) + ri.amount
 
-        content = ""
+        lines = []
         for (name, unit), amount in ingredients.items():
-            content += f"{name} ({unit}) — {amount}\\n"
+            lines.append(f"{name} ({unit}) — {int(amount)}")
+        content = "\n".join(lines)
 
-        response = FileResponse(content.encode("utf-8"), content_type="text/plain")
+        response = HttpResponse(content, content_type="text/plain")
         response["Content-Disposition"] = 'attachment; filename="shopping_list.txt"'
         return response
 
