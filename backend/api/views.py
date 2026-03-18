@@ -1,5 +1,11 @@
 from rest_framework import (
-    viewsets, permissions, status, response, decorators, views, mixins
+    viewsets,
+    permissions,
+    status,
+    response,
+    decorators,
+    views,
+    mixins,
 )
 from rest_framework.parsers import JSONParser, MultiPartParser, FormParser
 import base64
@@ -63,40 +69,44 @@ class UserViewSet(
 
         if not avatar_data:
             return response.Response(
-                {"avatar": ["Обязательное поле."]},
-                status=status.HTTP_400_BAD_REQUEST
+                {"avatar": ["Обязательное поле."]}, status=status.HTTP_400_BAD_REQUEST
             )
 
         if isinstance(avatar_data, str):
-        # Обработка Base64
-            if not avatar_data.startswith('data:image'):
+            # Обработка Base64
+            if not avatar_data.startswith("data:image"):
                 return response.Response(
                     {"avatar": ["Некорректный формат изображения."]},
-                    status=status.HTTP_400_BAD_REQUEST
+                    status=status.HTTP_400_BAD_REQUEST,
                 )
             try:
-                format, imgstr = avatar_data.split(';base64,')
-                ext = format.split('/')[-1]
+                format, imgstr = avatar_data.split(";base64,")
+                ext = format.split("/")[-1]
                 file_data = ContentFile(
-                    base64.b64decode(imgstr),
-                    name=f'avatar_{user.id}.{ext}'
+                    base64.b64decode(imgstr), name=f"avatar_{user.id}.{ext}"
                 )
             except Exception as e:
                 print(f"❌ Ошибка декодирования: {e}")
                 return response.Response(
                     {"avatar": ["Ошибка декодирования изображения."]},
-                    status=status.HTTP_400_BAD_REQUEST
+                    status=status.HTTP_400_BAD_REQUEST,
                 )
         else:
-        # Если прислали файл напрямую
-            if hasattr(avatar_data, 'content_type') and avatar_data.content_type.startswith('image/'):
+            # Если прислали файл напрямую
+            if hasattr(
+                avatar_data, "content_type"
+            ) and avatar_data.content_type.startswith("image/"):
                 file_data = avatar_data
-                ext = avatar_data.name.split('.')[-1] if '.' in avatar_data.name else 'jpg'
-                file_data.name = f'avatar_{user.id}.{ext}'
+                ext = (
+                    avatar_data.name.split(".")[-1]
+                    if "." in avatar_data.name
+                    else "jpg"
+                )
+                file_data.name = f"avatar_{user.id}.{ext}"
             else:
                 return response.Response(
                     {"avatar": ["Файл должен быть изображением."]},
-                    status=status.HTTP_400_BAD_REQUEST
+                    status=status.HTTP_400_BAD_REQUEST,
                 )
 
         user.avatar.save(file_data.name, file_data, save=True)
@@ -283,6 +293,12 @@ class RecipeViewSet(viewsets.ModelViewSet):
         response["Content-Disposition"] = 'attachment; filename="shopping_list.txt"'
         return response
 
+    def list(self, request, *args, **kwargs):
+        print("🔓 RecipeViewSet.list() — пользователь:", request.user)
+        print("🔐 Аутентифицирован:", request.user.is_authenticated)
+        print("🧩 Auth:", request.auth)
+        return super().list(request, *args, **kwargs)
+
 
 class SubscriptionViewSet(viewsets.GenericViewSet):
     """
@@ -314,11 +330,16 @@ class SubscriptionViewSet(viewsets.GenericViewSet):
 
         try:
             page = self.paginate_queryset(subscriptions)
-            print(f"✅ paginate_queryset вернул {len(page)} объектов" if page else "✅ page пустой")
+            print(
+                f"✅ paginate_queryset вернул {len(page)} объектов"
+                if page
+                else "✅ page пустой"
+            )
         except Exception as e:
             print(f"🔴 ОШИБКА в paginate_queryset: {e}")
             return response.Response(
-                {"error": "Ошибка пагинации"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                {"error": "Ошибка пагинации"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 
         if page is None or not page:

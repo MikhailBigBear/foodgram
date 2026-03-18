@@ -22,10 +22,12 @@ class Command(BaseCommand):
                 "is_superuser": True,
             },
         )
+        admin.set_password(admin_password)
+        admin.save()
         if created_admin:
-            admin.set_password(admin_password)
-            admin.save()
             self.stdout.write(f"✅ Админ создан: {admin.email}")
+        else:
+            self.stdout.write(f"✅ Админ обновлён: {admin.email} (пароль сброшен)")
 
         user1, created_user1 = User.objects.get_or_create(
             email="user1@example.com",

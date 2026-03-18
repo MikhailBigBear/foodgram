@@ -7,7 +7,7 @@ SECRET_KEY = "django-insecure-rr5vo%he8nf1d&0lny%&7-y0!=ul6k)yz(d@todw13o4aub)3c
 
 DEBUG = os.getenv("DEBUG", "False") == "True"
 
-ALLOWED_HOSTS = ["localhost", "127.0.0.1"]
+ALLOWED_HOSTS = ["localhost", "130.193.45.160", "127.0.0.1", "foodgrammyrecipes.ru"]
 
 INSTALLED_APPS = [
     "django.contrib.admin",
@@ -108,7 +108,7 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": [
         "rest_framework.authentication.TokenAuthentication",
-        "rest_framework.authentication.SessionAuthentication",
+        # "rest_framework.authentication.SessionAuthentication",
     ],
     "DEFAULT_PERMISSION_CLASSES": [
         "rest_framework.permissions.IsAuthenticatedOrReadOnly",
