@@ -151,10 +151,11 @@ class UserSerializer(serializers.ModelSerializer):
             return []
 
         if recipes_limit and recipes_limit.isdigit():
-            recipes = recipes[:int(recipes_limit)]
+            recipes = recipes[: int(recipes_limit)]
             print(f"✂️  get_recipes: ограничено до {recipes_limit}")
 
         from .serializers import RecipeSerializer
+
         serializer = RecipeSerializer(recipes, many=True, context=self.context)
         print(f"✅ get_recipes: сериализовано {len(serializer.data)} рецептов")
         return serializer.data
@@ -235,6 +236,9 @@ class RecipeCreateSerializer(serializers.ModelSerializer):
         return recipe
 
     def update(self, instance, validated_data):
+        print(f"🔧 Обновление рецепта: {instance.id}")
+        print(f"📥 validated_data: {validated_data}")
+
         ingredients_data = validated_data.pop("ingredients", None)
         tags_data = validated_data.pop("tags", None)
 
@@ -243,26 +247,46 @@ class RecipeCreateSerializer(serializers.ModelSerializer):
         instance.cooking_time = validated_data.get(
             "cooking_time", instance.cooking_time
         )
-        instance.image = validated_data.get("image", instance.image)
+        if "image" in validated_data:
+            instance.image = validated_data["image"]
         instance.save()
 
         if tags_data is not None:
+            print(f"📌 Устанавливаем теги: {tags_data}")
             instance.tags.set(tags_data)
 
         if ingredients_data is not None:
+            print(f"🥬 Удаляем старые ингредиенты")
             instance.recipeingredient_set.all().delete()
-            RecipeIngredient.objects.bulk_create(
-                [
-                    RecipeIngredient(
-                        recipe=instance,
-                        ingredient=item["ingredient"],
-                        amount=item["amount"],
-                    )
-                    for item in ingredients_data
-                ]
-            )
 
-        return instance
+            new_ingredients = []
+            for item in ingredients_data:
+                try:
+                    ingredient = item["ingredient"]
+                    amount = item["amount"]
+                    if not isinstance(amount, (int, float)) or amount <= 0:
+                        raise ValidationError(f"Неверное количество: {amount}")
+                    new_ingredients.append(
+                        RecipeIngredient(
+                            recipe=instance, ingredient=ingredient, amount=amount
+                        )
+                    )
+                except Exception as e:
+                    print(f"❌ Ошибка при создании ингредиента: {e} | item: {item}")
+                    raise ValidationError(f"Ошибка в ингредиенте: {e}")
+
+            if new_ingredients:
+                print(f"➕ bulk_create: {len(new_ingredients)} ингредиентов")
+                RecipeIngredient.objects.bulk_create(new_ingredients)
+                print(
+                    "🔍 Количество ингредиентов после bulk_create:",
+                    instance.recipeingredient_set.count(),
+                )
+        if hasattr(instance, "_prefetched_objects_cache"):
+            instance._prefetched_objects_cache = {}
+
+        fresh_instance = Recipe.objects.get(id=instance.id)
+        return fresh_instance
 
 
 class UserRegistrationSerializer(serializers.ModelSerializer):

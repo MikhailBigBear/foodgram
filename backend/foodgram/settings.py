@@ -121,3 +121,23 @@ REST_FRAMEWORK = {
     "PAGE_SIZE": 6,
     "TEST_REQUEST_DEFAULT_FORMAT": "json",
 }
+
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "handlers": {
+        "console": {
+            "class": "logging.StreamHandler",
+        },
+    },
+    "loggers": {
+        "django": {
+            "handlers": ["console"],
+            "level": "DEBUG",
+        },
+        "api": {
+            "handlers": ["console"],
+            "level": "DEBUG",
+        },
+    },
+}

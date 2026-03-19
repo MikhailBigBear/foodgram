@@ -293,6 +293,21 @@ class RecipeViewSet(viewsets.ModelViewSet):
         response["Content-Disposition"] = 'attachment; filename="shopping_list.txt"'
         return response
 
+    def update(self, request, *args, **kwargs):
+        partial = kwargs.pop("partial", False)
+        instance = self.get_object()
+
+        serializer = self.get_serializer(instance, data=request.data, partial=partial)
+        serializer.is_valid(raise_exception=True)
+        self.perform_update(serializer)
+
+        instance.refresh_from_db()
+
+        response_serializer = RecipeSerializer(
+            instance, context=self.get_serializer_context()
+        )
+        return response.Response(response_serializer.data, status=status.HTTP_200_OK)
+
     def list(self, request, *args, **kwargs):
         print("🔓 RecipeViewSet.list() — пользователь:", request.user)
         print("🔐 Аутентифицирован:", request.user.is_authenticated)
