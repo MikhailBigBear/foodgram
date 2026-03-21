@@ -2,47 +2,49 @@ version: '3.8'
 
 volumes:
   pg_data:
-  static:
   media:
+  static:
 
 services:
   db:
     image: postgres:13-alpine
-    env_file: .env
+    env_file: ../.env
     volumes:
       - pg_data:/var/lib/postgresql/data
     restart: always
 
   backend:
     image: mikhailbigbear/foodgram-backend:latest
-    env_file: .env
+    env_file: ../.env
     volumes:
-      - static:/app/static/
       - media:/app/media/
+      - static:/app/static/
     depends_on:
       - db
     expose:
       - 8000
+    command: >
+      sh -c "
+      python manage.py migrate --noinput &&
+      python manage.py collectstatic --noinput &&
+      echo '✅ Статика Django собрана в /app/static' &&
+      gunicorn foodgram.wsgi:application --bind 0.0.0.0:8000
+      "
     restart: always
 
-  collectstatic:
-    image: mikhailbigbear/foodgram-backend:latest
-    env_file: .env
-    volumes:
-      - static:/app/static/
-    command: python manage.py collectstatic --noinput
-    depends_on:
-      - backend
-    restart: "no"
+  frontend:
+    image: mikhailbigbear/foodgram-frontend:latest
+    restart: always
 
   nginx:
     image: nginx:1.25.4-alpine
     ports:
       - "80:80"
-    volumes:
-      - static:/var/html/static/
-      - media:/var/html/media/
-      - ./nginx.conf:/etc/nginx/conf.d/default.conf
     depends_on:
-      - collectstatic
+      - backend
+      - frontend
+    volumes:
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf
+      - media:/var/html/media/
+      - static:/var/html/static/
     restart: always
