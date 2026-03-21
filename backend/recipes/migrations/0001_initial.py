@@ -125,7 +125,9 @@ class Migration(migrations.Migration):
                     "cooking_time",
                     models.PositiveIntegerField(
                         help_text="Время приготовления в минутах (не менее 1)",
-                        validators=[django.core.validators.MinValueValidator(1)],
+                        validators=[
+                            django.core.validators.MinValueValidator(1)
+                        ],
                         verbose_name="Время приготовления",
                     ),
                 ),
@@ -168,7 +170,9 @@ class Migration(migrations.Migration):
                     "amount",
                     models.FloatField(
                         help_text="Количество ингредиента",
-                        validators=[django.core.validators.MinValueValidator(0.1)],
+                        validators=[
+                            django.core.validators.MinValueValidator(0.1)
+                        ],
                     ),
                 ),
                 (

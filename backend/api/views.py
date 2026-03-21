@@ -1,46 +1,70 @@
-from rest_framework import (
-    viewsets,
-    permissions,
-    status,
-    response,
-    decorators,
-    views,
-    mixins,
-)
-from rest_framework.parsers import JSONParser, MultiPartParser, FormParser
+"""
+Модуль содержит представления (views) для API Foodgram.
+
+Содержит ViewSets и APIView для:
+- Управления пользователями (профиль, аватар, регистрация)
+- Работы с рецептами, тегами, ингредиентами
+- Подписками и избранным
+- Авторизацией (логин/выход)
+"""
+
 import base64
+
+from django.contrib.auth import authenticate
 from django.core.files.base import ContentFile
+from django.http import HttpResponse
+from django.shortcuts import get_object_or_404
+from rest_framework import (
+    decorators,
+    mixins,
+    permissions,
+    response,
+    status,
+    views,
+    viewsets,
+)
 from rest_framework.authtoken.models import Token
 from rest_framework.authtoken.views import ObtainAuthToken
-from rest_framework.views import APIView
+from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.permissions import AllowAny
-from django.shortcuts import get_object_or_404
-from django.contrib.auth import authenticate
-from django.http import HttpResponse
-from recipes.models import Recipe, Tag, Ingredient, Favorite, ShoppingCart, Subscription
-from users.models import User
+from rest_framework.views import APIView
+
+from .pagination import StandardResultsSetPagination
+from .permissions import IsAuthenticated
 from .serializers import (
+    IngredientSerializer,
+    RecipeCreateSerializer,
     RecipeSerializer,
     TagSerializer,
-    IngredientSerializer,
-    UserSerializer,
     UserRegistrationSerializer,
-    RecipeCreateSerializer,
+    UserSerializer,
 )
-from .permissions import IsAuthenticated
-from .pagination import StandardResultsSetPagination
+from recipes.models import (
+    Favorite,
+    Ingredient,
+    Recipe,
+    ShoppingCart,
+    Subscription,
+    Tag,
+)
+from users.models import User
 
 
 class UserViewSet(
-    viewsets.GenericViewSet, mixins.ListModelMixin, mixins.RetrieveModelMixin
+    mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets.GenericViewSet
 ):
     """
-    ViewSet для работы с пользователями.
+    ViewSet для управления пользователями.
 
     Поддерживает:
+    - Получение списка пользователей
+    - Просмотр профиля пользователя
     - Получение профиля текущего пользователя (/me/)
-    - Загрузка и удаление аватара (/me/avatar/)
-    - Смена пароля (/set_password/)
+    - Загрузку и удаление аватара
+    - Смену пароля
+
+    Доступ:
+    - Все действия требуют аутентификации.
     """
 
     queryset = User.objects.all()
@@ -60,20 +84,17 @@ class UserViewSet(
         parser_classes=[JSONParser, MultiPartParser, FormParser],
     )
     def set_avatar(self, request):
-        print("📥 Начало set_avatar — Content-Type:", request.content_type)
-        print("📄 request.data:", dict(request.data))
-        print("🔑 Ключи:", request.data.keys())
-
+        """Устанавливает аватар пользователя."""
         user = request.user
         avatar_data = request.data.get("avatar")
 
         if not avatar_data:
             return response.Response(
-                {"avatar": ["Обязательное поле."]}, status=status.HTTP_400_BAD_REQUEST
+                {"avatar": ["Обязательное поле."]},
+                status=status.HTTP_400_BAD_REQUEST,
             )
 
         if isinstance(avatar_data, str):
-            # Обработка Base64
             if not avatar_data.startswith("data:image"):
                 return response.Response(
                     {"avatar": ["Некорректный формат изображения."]},
@@ -85,14 +106,12 @@ class UserViewSet(
                 file_data = ContentFile(
                     base64.b64decode(imgstr), name=f"avatar_{user.id}.{ext}"
                 )
-            except Exception as e:
-                print(f"❌ Ошибка декодирования: {e}")
+            except Exception:
                 return response.Response(
                     {"avatar": ["Ошибка декодирования изображения."]},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
         else:
-            # Если прислали файл напрямую
             if hasattr(
                 avatar_data, "content_type"
             ) and avatar_data.content_type.startswith("image/"):
@@ -110,7 +129,6 @@ class UserViewSet(
                 )
 
         user.avatar.save(file_data.name, file_data, save=True)
-        print(f"✅ Аватар сохранён: {user.avatar.path}")
 
         serializer = self.get_serializer(user)
         return response.Response({"avatar": serializer.data["avatar"]})
@@ -183,11 +201,15 @@ class RecipeViewSet(viewsets.ModelViewSet):
     """
     ViewSet для работы с рецептами.
 
-    Поддерживает:
-    - CRUD рецептов (только автор может редактировать/удалять)
-    - Фильтрацию: по автору, тегам, избранному, списку покупок
-    - Добавление/удаление из избранного и списка покупок
-    - Выгрузку списка покупок в TXT
+    Поддерживает CRUD операции, фильтрацию и действия:
+    - Избранное
+    - Корзина покупок
+    - Выгрузка списка покупок в TXT
+
+    Доступ:
+    - Чтение: всем
+    - Создание/обновление: только авторизованным
+    - Редактирование: только автору
     """
 
     queryset = Recipe.objects.prefetch_related(
@@ -196,11 +218,13 @@ class RecipeViewSet(viewsets.ModelViewSet):
     pagination_class = StandardResultsSetPagination
 
     def get_serializer_class(self):
+        """Использует разные сериализаторы для создания/чтения."""
         if self.action in ("create", "update", "partial_update"):
             return RecipeCreateSerializer
         return RecipeSerializer
 
     def get_permissions(self):
+        """Устанавливает права доступа для действий."""
         if self.action in ["list", "retrieve"]:
             return [permissions.AllowAny()]
         return [permissions.IsAuthenticated()]
@@ -209,7 +233,9 @@ class RecipeViewSet(viewsets.ModelViewSet):
         """Фильтрует рецепты по параметрам запроса."""
         queryset = self.queryset
         is_favorited = self.request.query_params.get("is_favorited")
-        is_in_shopping_cart = self.request.query_params.get("is_in_shopping_cart")
+        is_in_shopping_cart = self.request.query_params.get(
+            "is_in_shopping_cart"
+        )
         author_id = self.request.query_params.get("author")
         tags = self.request.query_params.getlist("tags")
 
@@ -243,7 +269,9 @@ class RecipeViewSet(viewsets.ModelViewSet):
         recipe = get_object_or_404(Recipe, id=pk)
         Favorite.objects.get_or_create(user=request.user, recipe=recipe)
         serializer = RecipeSerializer(recipe, context={"request": request})
-        return response.Response(serializer.data, status=status.HTTP_201_CREATED)
+        return response.Response(
+            serializer.data, status=status.HTTP_201_CREATED
+        )
 
     @decorators.action(detail=True, methods=["delete"], url_path="favorite")
     def remove_from_favorite(self, request, pk=None):
@@ -258,16 +286,22 @@ class RecipeViewSet(viewsets.ModelViewSet):
         recipe = get_object_or_404(Recipe, id=pk)
         ShoppingCart.objects.get_or_create(user=request.user, recipe=recipe)
         serializer = RecipeSerializer(recipe, context={"request": request})
-        return response.Response(serializer.data, status=status.HTTP_201_CREATED)
+        return response.Response(
+            serializer.data, status=status.HTTP_201_CREATED
+        )
 
-    @decorators.action(detail=True, methods=["delete"], url_path="shopping_cart")
+    @decorators.action(
+        detail=True, methods=["delete"], url_path="shopping_cart"
+    )
     def remove_from_shopping_cart(self, request, pk=None):
         """Удаляет рецепт из списка покупок текущего пользователя."""
         recipe = get_object_or_404(Recipe, id=pk)
         ShoppingCart.objects.filter(user=request.user, recipe=recipe).delete()
         return response.Response(status=status.HTTP_204_NO_CONTENT)
 
-    @decorators.action(detail=False, methods=["get"], url_path="download_shopping_cart")
+    @decorators.action(
+        detail=False, methods=["get"], url_path="download_shopping_cart"
+    )
     def download_shopping_cart(self, request):
         """Выгружает список покупок текущего пользователя в формате TXT."""
         recipes = Recipe.objects.filter(
@@ -290,14 +324,19 @@ class RecipeViewSet(viewsets.ModelViewSet):
         content = "\n".join(lines)
 
         response = HttpResponse(content, content_type="text/plain")
-        response["Content-Disposition"] = 'attachment; filename="shopping_list.txt"'
+        response["Content-Disposition"] = (
+            'attachment; filename="shopping_list.txt"'
+        )
         return response
 
     def update(self, request, *args, **kwargs):
+        """Обновляет рецепт, проверяя права доступа."""
         partial = kwargs.pop("partial", False)
         instance = self.get_object()
 
-        serializer = self.get_serializer(instance, data=request.data, partial=partial)
+        serializer = self.get_serializer(
+            instance, data=request.data, partial=partial
+        )
         serializer.is_valid(raise_exception=True)
         self.perform_update(serializer)
 
@@ -306,22 +345,24 @@ class RecipeViewSet(viewsets.ModelViewSet):
         response_serializer = RecipeSerializer(
             instance, context=self.get_serializer_context()
         )
-        return response.Response(response_serializer.data, status=status.HTTP_200_OK)
+        return response.Response(
+            response_serializer.data, status=status.HTTP_200_OK
+        )
 
     def list(self, request, *args, **kwargs):
-        print("🔓 RecipeViewSet.list() — пользователь:", request.user)
-        print("🔐 Аутентифицирован:", request.user.is_authenticated)
-        print("🧩 Auth:", request.auth)
+        """Логирование входа в список рецептов."""
         return super().list(request, *args, **kwargs)
 
 
 class SubscriptionViewSet(viewsets.GenericViewSet):
     """
-    ViewSet для работы с подписками.
+    ViewSet для управления подписками.
 
     Поддерживает:
-    - Получение списка подписок текущего пользователя (/subscriptions/)
-    - Подписку/отписку от автора (/users/{id}/subscribe/)
+    - Получение списка подписок (/subscriptions/)
+    - Подписку и отписку от автора
+
+    Доступ: только авторизованным.
     """
 
     permission_classes = [IsAuthenticated]
@@ -329,10 +370,14 @@ class SubscriptionViewSet(viewsets.GenericViewSet):
 
     @decorators.action(detail=False, methods=["get"], url_path="subscriptions")
     def subscriptions(self, request):
-        print("🔵 Начало subscriptions() — request.user:", request.user)
-        print("🔹 context до сериализации:", self.get_serializer_context())
-        print("📌 query_params:", dict(request.query_params))
+        """
+        Возвращает список авторов, на которых подписан пользователь.
 
+        Поддерживает пагинацию и включает краткие данные о рецептах.
+
+        Returns:
+            Response: Список авторов с пагинацией.
+        """
         subscriptions = (
             Subscription.objects.filter(user=request.user)
             .select_related("author")
@@ -345,13 +390,7 @@ class SubscriptionViewSet(viewsets.GenericViewSet):
 
         try:
             page = self.paginate_queryset(subscriptions)
-            print(
-                f"✅ paginate_queryset вернул {len(page)} объектов"
-                if page
-                else "✅ page пустой"
-            )
-        except Exception as e:
-            print(f"🔴 ОШИБКА в paginate_queryset: {e}")
+        except Exception:
             return response.Response(
                 {"error": "Ошибка пагинации"},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -361,12 +400,9 @@ class SubscriptionViewSet(viewsets.GenericViewSet):
             return self.get_paginated_response([])
         authors = [sub.author for sub in page]
 
-        print(f"📄 Найдено подписок: {len(authors)}")
-        for author in authors:
-            print(f" — Автор: {author}, рецептов: {author.recipes.count()}")
-
-        serializer = UserSerializer(authors, many=True, context={"request": request})
-        print("✅ Сериализатор создан")
+        serializer = UserSerializer(
+            authors, many=True, context={"request": request}
+        )
 
         return self.get_paginated_response(serializer.data)
 
@@ -375,7 +411,9 @@ class SubscriptionViewSet(viewsets.GenericViewSet):
         """Подписывает текущего пользователя на автора с ID=pk."""
         author = get_object_or_404(User, id=pk)
         Subscription.objects.get_or_create(user=request.user, author=author)
-        return response.Response({"success": True}, status=status.HTTP_201_CREATED)
+        return response.Response(
+            {"success": True}, status=status.HTTP_201_CREATED
+        )
 
     @decorators.action(detail=True, methods=["delete"], url_path="subscribe")
     def unsubscribe(self, request, pk=None):
@@ -386,19 +424,27 @@ class SubscriptionViewSet(viewsets.GenericViewSet):
 
 
 class TokenLoginView(ObtainAuthToken):
-    """View для авторизации по токену."""
+    """
+    Представление для получения аутентификационного токена.
+
+    Ожидает email и пароль.
+    Возвращает токен при успешной авторизации.
+    """
 
     def post(self, request, *args, **kwargs):
+        """Обрабатывает POST-запрос и возвращает токен."""
         email = request.data.get("email")
         password = request.data.get("password")
 
         if not email:
             return response.Response(
-                {"email": "Обязательное поле."}, status=status.HTTP_400_BAD_REQUEST
+                {"email": "Обязательное поле."},
+                status=status.HTTP_400_BAD_REQUEST,
             )
         if not password:
             return response.Response(
-                {"password": "Обязательное поле."}, status=status.HTTP_400_BAD_REQUEST
+                {"password": "Обязательное поле."},
+                status=status.HTTP_400_BAD_REQUEST,
             )
 
         user = authenticate(request, username=email, password=password)
@@ -433,10 +479,9 @@ class UserRegistrationView(views.APIView):
     permission_classes = [permissions.AllowAny]
 
     def post(self, request):
-        print("Данные на входе:", request.data)
+        """Обрабатывает POST-запрос на регистрацию."""
         serializer = UserRegistrationSerializer(data=request.data)
         if serializer.is_valid():
-            print("Валидация прошла успешно")
             user = serializer.save()
             return response.Response(
                 {
@@ -450,5 +495,6 @@ class UserRegistrationView(views.APIView):
                 },
                 status=status.HTTP_201_CREATED,
             )
-        print("Ошибки сериализатора:", serializer.errors)
-        return response.Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        return response.Response(
+            serializer.errors, status=status.HTTP_400_BAD_REQUEST
+        )

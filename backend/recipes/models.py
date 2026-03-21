@@ -1,6 +1,16 @@
+"""
+Модели приложения recipes.
+
+Содержит основные сущности:
+- Ингредиенты
+- Теги
+- Рецепты
+- Связи: рецепт-ингредиент, избранное, корзина, подписки
+"""
+
 from django.conf import settings
-from django.db import models
 from django.core.validators import MinValueValidator
+from django.db import models
 
 
 class Ingredient(models.Model):
@@ -11,7 +21,9 @@ class Ingredient(models.Model):
     """
 
     name = models.CharField(
-        max_length=128, verbose_name="Название", help_text="Название ингредиента"
+        max_length=128,
+        verbose_name="Название",
+        help_text="Название ингредиента",
     )
     measurement_unit = models.CharField(
         max_length=64,
@@ -20,11 +32,14 @@ class Ingredient(models.Model):
     )
 
     class Meta:
+        """Метаданные модели."""
+
         verbose_name = "Ингредиент"
         verbose_name_plural = "Ингредиенты"
         ordering = ["name"]
 
     def __str__(self):
+        """Возвращает название ингредиента."""
         return self.name
 
 
@@ -37,7 +52,10 @@ class Tag(models.Model):
     """
 
     name = models.CharField(
-        max_length=32, unique=True, verbose_name="Название", help_text="Название тега"
+        max_length=32,
+        unique=True,
+        verbose_name="Название",
+        help_text="Название тега",
     )
     slug = models.SlugField(
         max_length=32,
@@ -47,10 +65,13 @@ class Tag(models.Model):
     )
 
     class Meta:
+        """Метаданные модели."""
+
         verbose_name = "Тег"
         verbose_name_plural = "Теги"
 
     def __str__(self):
+        """Возвращает название тега."""
         return self.name
 
 
@@ -88,7 +109,9 @@ class Recipe(models.Model):
         help_text="Время приготовления в минутах (не менее 1)",
     )
     tags = models.ManyToManyField(
-        Tag, verbose_name="Теги", help_text="Категории, к которым относится рецепт."
+        Tag,
+        verbose_name="Теги",
+        help_text="Категории, к которым относится рецепт.",
     )
     ingredients = models.ManyToManyField(
         Ingredient,
@@ -96,14 +119,19 @@ class Recipe(models.Model):
         verbose_name="Ингредиенты",
         help_text="Список ингредиентов",
     )
-    created_at = models.DateTimeField(auto_now_add=True, verbose_name="Дата создания")
+    created_at = models.DateTimeField(
+        auto_now_add=True, verbose_name="Дата создания"
+    )
 
     class Meta:
+        """Метаданные модели."""
+
         verbose_name = "Рецепт"
         verbose_name_plural = "Рецепты"
         ordering = ["-created_at"]
 
     def __str__(self):
+        """Возвращает название рецепта."""
         return self.name
 
 
@@ -120,19 +148,24 @@ class RecipeIngredient(models.Model):
         help_text="Рецепт, к которому относится ингредиент",
     )
     ingredient = models.ForeignKey(
-        Ingredient, on_delete=models.CASCADE, help_text="Используемый ингредиент"
+        Ingredient,
+        on_delete=models.CASCADE,
+        help_text="Используемый ингредиент",
     )
     amount = models.FloatField(
         validators=[MinValueValidator(0.1)], help_text="Количество ингредиента"
     )
 
     class Meta:
+        """Метаданные модели."""
+
         unique_together = ("recipe", "ingredient")
         verbose_name = "Связь рецепта и ингредиента"
         verbose_name_plural = "Связи рецептов и ингредиентов"
         ordering = ["recipe", "ingredient"]
 
     def __str__(self):
+        """Возвращает название рецепта и ингредиента."""
         return f"{self.recipe.name} — {self.ingredient.name}"
 
 
@@ -159,12 +192,15 @@ class Favorite(models.Model):
     )
 
     class Meta:
+        """Метаданные модели."""
+
         unique_together = ("user", "recipe")
         verbose_name = "Избранное"
         verbose_name_plural = "Избранное"
         ordering = ["-recipe__created_at"]
 
     def __str__(self):
+        """Возвращает строковое представление объекта."""
         return f"{self.user.username} — {self.recipe.name}"
 
 
@@ -192,12 +228,15 @@ class ShoppingCart(models.Model):
     )
 
     class Meta:
+        """Метаданные модели."""
+
         unique_together = ("user", "recipe")
         verbose_name = "Корзина покупок"
         verbose_name_plural = "Корзины покупок"
         ordering = ["-recipe__created_at"]
 
     def __str__(self):
+        """Возвращает строковое представление объекта."""
         return f"{self.user.username} — {self.recipe.name}"
 
 
@@ -224,9 +263,13 @@ class Subscription(models.Model):
         verbose_name="Автор",
         help_text="Пользователь, на которого оформлена подписка",
     )
-    created_at = models.DateTimeField(auto_now_add=True, verbose_name="Дата подписки")
+    created_at = models.DateTimeField(
+        auto_now_add=True, verbose_name="Дата подписки"
+    )
 
     class Meta:
+        """Метаданные модели."""
+
         verbose_name = "Подписка"
         verbose_name_plural = "Подписки"
         unique_together = ("user", "author")

@@ -1,7 +1,10 @@
+"""Модуль настраивает интерфейс админки Django для моделей recipes."""
+
 from django.contrib import admin
+
 from .models import (
-    Ingredient,
     Favorite,
+    Ingredient,
     Recipe,
     RecipeIngredient,
     ShoppingCart,
@@ -11,6 +14,8 @@ from .models import (
 
 
 class RecipeIngredientInline(admin.TabularInline):
+    """Настройка отображения модели RecipeIngredient в админке."""
+
     model = RecipeIngredient
     extra = 1
 
@@ -34,13 +39,14 @@ class FavoriteAdmin(admin.ModelAdmin):
 class RecipeAdmin(admin.ModelAdmin):
     """Настройка отображения модели Recipe в админке."""
 
-    list_display = ('name', 'author', 'favorites_count')
-    list_filter = ('author', 'tags', 'name')
-    search_fields = ('name', 'author__username', 'author__email')
-    filter_horizontal = ('tags',)
+    list_display = ("name", "author", "favorites_count")
+    list_filter = ("author", "tags", "name")
+    search_fields = ("name", "author__username", "author__email")
+    filter_horizontal = ("tags",)
 
     @property
     def favorites_count(self):
+        """Отображает количество добавлений рецепта в избранное."""
         def _favorites_count(obj):
             return obj.favorited_by.count()
 

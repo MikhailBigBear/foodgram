@@ -1,17 +1,36 @@
-from django.core.management.base import BaseCommand
-from recipes.models import Ingredient, Tag, Recipe, RecipeIngredient
-from users.models import User
-import os
+"""
+Команда Django для заполнения базы данных тестовыми данными.
+
+Создаёт:
+- Администратора и пользователей
+- Теги
+- Ингредиенты (из CSV-файла и вручную)
+- Рецепты (13 шт.) с ингредиентами и тегами
+
+Использование:
+    python manage.py fill_db
+
+Переменные окружения:
+    ADMIN_PASSWORD — пароль для администратора.
+"""
+
 import csv
+import os
+
+from django.core.management.base import BaseCommand
+from recipes.models import Ingredient, Recipe, RecipeIngredient, Tag
+from users.models import User
 
 
 class Command(BaseCommand):
+    """Команда Django для заполнения базы данных тестовыми данными."""
+
     help = "Заполняет базу: пользователи, теги, ингредиенты, рецепты"
 
     def handle(self, *args, **options):
+        """Обработчик команды."""
         admin_password = os.getenv("ADMIN_PASSWORD", "admin")
 
-        # === ПОЛЬЗОВАТЕЛИ ===
         admin, created_admin = User.objects.get_or_create(
             email="miholxovikov92@mail.ru",
             defaults={
@@ -27,11 +46,17 @@ class Command(BaseCommand):
         if created_admin:
             self.stdout.write(f"✅ Админ создан: {admin.email}")
         else:
-            self.stdout.write(f"✅ Админ обновлён: {admin.email} (пароль сброшен)")
+            self.stdout.write(
+                f"✅ Админ обновлён: {admin.email} (пароль сброшен)"
+            )
 
         user1, created_user1 = User.objects.get_or_create(
             email="user1@example.com",
-            defaults={"username": "user1", "first_name": "Иван", "last_name": "Петров"},
+            defaults={
+                "username": "user1",
+                "first_name": "Иван",
+                "last_name": "Петров",
+            },
         )
         if created_user1:
             user1.set_password("password")
@@ -51,7 +76,6 @@ class Command(BaseCommand):
             user2.save()
             self.stdout.write(f"✅ Пользователь: {user2.username}")
 
-        # === ТЕГИ ===
         tags_data = [
             {"name": "Завтрак", "slug": "breakfast"},
             {"name": "Обед", "slug": "lunch"},
@@ -67,10 +91,11 @@ class Command(BaseCommand):
                 self.stdout.write(f"✅ Тег: {tag.name}")
             tags.append(tag)
 
-        # === ЗАГРУЗКА ИНГРЕДИЕНТОВ ИЗ CSV ===
         file_path = "data/ingredients.csv"
         if not os.path.exists(file_path):
-            self.stdout.write(self.style.ERROR(f"❌ Файл {file_path} не найден"))
+            self.stdout.write(
+                self.style.ERROR(f"❌ Файл {file_path} не найден")
+            )
             return
 
         created_ingredients = 0
@@ -88,17 +113,17 @@ class Command(BaseCommand):
                     created_ingredients += 1
 
         self.stdout.write(
-            self.style.SUCCESS(f"✅ Загружено {created_ingredients} ингредиентов")
+            self.style.SUCCESS(
+                f"✅ Загружено {created_ingredients} ингредиентов"
+            )
         )
 
-        # === УТИЛИТА: поиск ингредиента ===
         def get_ingredient(name):
             try:
                 return Ingredient.objects.get(name__iexact=name)
             except Ingredient.DoesNotExist:
                 return None
 
-        # === СЛОВАРЬ ИНГРЕДИЕНТОВ ===
         ingredients_map = {
             "сахар": get_ingredient("сахар"),
             "яйца куриные": get_ingredient("яйца куриные"),
@@ -113,7 +138,9 @@ class Command(BaseCommand):
             "растительное масло рафинированное": get_ingredient(
                 "растительное масло рафинированное"
             ),
-            "фарш (баранина и говядина)": get_ingredient("фарш (баранина и говядина)"),
+            "фарш (баранина и говядина)": get_ingredient(
+                "фарш (баранина и говядина)"
+            ),
             "соевый соус": get_ingredient("соевый соус"),
             "свёкла": get_ingredient("свёкла"),
             "капуста белокочанная": get_ingredient("капуста белокочанная"),
@@ -131,8 +158,12 @@ class Command(BaseCommand):
             "зелень": get_ingredient("зелень"),
             "чеснок": get_ingredient("чеснок"),
             "рыба белая": get_ingredient("рыба белая"),
-            "булочки для гамбургеров": get_ingredient("булочки для гамбургеров"),
-            "томаты консервированные": get_ingredient("помидоры консервированные"),
+            "булочки для гамбургеров": get_ingredient(
+                "булочки для гамбургеров"
+            ),
+            "томаты консервированные": get_ingredient(
+                "помидоры консервированные"
+            ),
             "лавровый лист": get_ingredient("лавровый лист"),
             "майонез «Слобода» На перепелиных яйцах": get_ingredient(
                 "майонез «Слобода» На перепелиных яйцах"
@@ -147,16 +178,15 @@ class Command(BaseCommand):
                 ingredients_map[name] = ing
                 self.stdout.write(f"✅ Добавлен: {name}")
 
-        # === РЕЦЕПТЫ (все 13) ===
-
-        # 1. Омлет с сыром
         recipe, created = Recipe.objects.get_or_create(
             author=admin,
             name="Омлет с сыром",
             defaults={
                 "text": "Взбейте яйца с молоком, добавьте соль и перец. "
-                "Вылейте на сковороду с маслом, обжаривайте до полуготовности. "
-                "Посыпьте тертым сыром, накройте крышкой и дождитесь расплавления.",
+                "Вылейте на сковороду с маслом, "
+                "обжаривайте до полуготовности. "
+                "Посыпьте тертым сыром, накройте "
+                "крышкой и дождитесь расплавления.",
                 "cooking_time": 10,
                 "image": "recipes/omelette.jpg",
             },
@@ -172,17 +202,20 @@ class Command(BaseCommand):
                 ("масло сливочное", 15),
             ]:
                 RecipeIngredient.objects.get_or_create(
-                    recipe=recipe, ingredient=ingredients_map[name], amount=amount
+                    recipe=recipe,
+                    ingredient=ingredients_map[name],
+                    amount=amount,
                 )
             self.stdout.write("✅ Рецепт 'Омлет' создан")
 
-        # 2. Борщ
         recipe, created = Recipe.objects.get_or_create(
             author=user1,
             name="Борщ",
             defaults={
-                "text": "Сварите мясной бульон. Отдельно потушите свёклу с луком и морковью. "
-                "Добавьте капусту, картофель, специи. Заправьте томатом и уксусом. "
+                "text": "Сварите мясной бульон. "
+                "Отдельно потушите свёклу с луком и морковью. "
+                "Добавьте капусту, картофель, специи. "
+                "Заправьте томатом и уксусом. "
                 "Подавайте со сметаной и зеленью.",
                 "cooking_time": 90,
                 "image": "recipes/borscht.jpg",
@@ -205,16 +238,18 @@ class Command(BaseCommand):
                 ("зелень", 30),
             ]:
                 RecipeIngredient.objects.get_or_create(
-                    recipe=recipe, ingredient=ingredients_map[name], amount=amount
+                    recipe=recipe,
+                    ingredient=ingredients_map[name],
+                    amount=amount,
                 )
             self.stdout.write("✅ Рецепт 'Борщ' создан")
 
-        # 3. Чай с лимоном
         recipe, created = Recipe.objects.get_or_create(
             author=user2,
             name="Чай с лимоном",
             defaults={
-                "text": "Заварите черный чай. Добавьте дольку свежего лимона и сахар по вкусу. "
+                "text": "Заварите черный чай. Добавьте дольку "
+                "свежего лимона и сахар по вкусу. "
                 "Подавайте горячим или охлаждённым.",
                 "cooking_time": 5,
                 "image": "recipes/tea.jpg",
@@ -227,16 +262,18 @@ class Command(BaseCommand):
                 ("лимон", 1),
             ]:
                 RecipeIngredient.objects.get_or_create(
-                    recipe=recipe, ingredient=ingredients_map[name], amount=amount
+                    recipe=recipe,
+                    ingredient=ingredients_map[name],
+                    amount=amount,
                 )
             self.stdout.write("✅ Рецепт 'Чай' создан")
 
-        # 4. Картофель по-деревенски
         recipe, created = Recipe.objects.get_or_create(
             author=admin,
             name="Картофель по-деревенски",
             defaults={
-                "text": "Картофель нарежьте крупными кусками, посолите, сбрызните маслом. "
+                "text": "Картофель нарежьте крупными кусками, "
+                "посолите, сбрызните маслом. "
                 "Выпекайте в духовке при 200°C до хрустящей корочки.",
                 "cooking_time": 30,
                 "image": "recipes/potatoes.jpg",
@@ -251,16 +288,18 @@ class Command(BaseCommand):
                 ("перец чёрный", 1),
             ]:
                 RecipeIngredient.objects.get_or_create(
-                    recipe=recipe, ingredient=ingredients_map[name], amount=amount
+                    recipe=recipe,
+                    ingredient=ingredients_map[name],
+                    amount=amount,
                 )
             self.stdout.write("✅ Рецепт 'Картофель' создан")
 
-        # 5. Сырники
         recipe, created = Recipe.objects.get_or_create(
             author=admin,
             name="Сырники",
             defaults={
-                "text": "Смешайте творог с яйцом, сахаром, мукой. Сформируйте лепёшки, "
+                "text": "Смешайте творог с яйцом, сахаром, мукой. "
+                "Сформируйте лепёшки, "
                 "обваляйте в муке и жарьте на масле до золотистой корочки.",
                 "cooking_time": 25,
                 "image": "recipes/syrniki.jpg",
@@ -277,17 +316,20 @@ class Command(BaseCommand):
                 ("соль", 1),
             ]:
                 RecipeIngredient.objects.get_or_create(
-                    recipe=recipe, ingredient=ingredients_map[name], amount=amount
+                    recipe=recipe,
+                    ingredient=ingredients_map[name],
+                    amount=amount,
                 )
             self.stdout.write("✅ Рецепт 'Сырники' создан")
 
-        # 6. Гамбургер
         recipe, created = Recipe.objects.get_or_create(
             author=admin,
             name="Гамбургер",
             defaults={
-                "text": "Обжарьте котлету из фарша. Подготовьте булочку: подсушите в тостере. "
-                "Смажьте майонезом. Соберите: котлета, сыр, лук, огурцы, соус.",
+                "text": "Обжарьте котлету из фарша. "
+                "Подготовьте булочку: подсушите в тостере. "
+                "Смажьте майонезом. "
+                "Соберите: котлета, сыр, лук, огурцы, соус.",
                 "cooking_time": 20,
                 "image": "recipes/burger.jpg",
             },
@@ -312,12 +354,12 @@ class Command(BaseCommand):
                 )
             self.stdout.write("✅ Рецепт 'Гамбургер' создан")
 
-        # 7. Пельмени
         recipe, created = Recipe.objects.get_or_create(
             author=user1,
             name="Пельмени",
             defaults={
-                "text": "Сварите пельмени в подсоленной воде. Подавайте со сметаной и зеленью. "
+                "text": "Сварите пельмени в подсоленной воде. "
+                "Подавайте со сметаной и зеленью. "
                 "По желанию добавьте сливочное масло.",
                 "cooking_time": 15,
                 "image": "recipes/pelmeni.jpg",
@@ -333,16 +375,18 @@ class Command(BaseCommand):
                 ("соль", 1),
             ]:
                 RecipeIngredient.objects.get_or_create(
-                    recipe=recipe, ingredient=ingredients_map[name], amount=amount
+                    recipe=recipe,
+                    ingredient=ingredients_map[name],
+                    amount=amount,
                 )
             self.stdout.write("✅ Рецепт 'Пельмени' создан")
 
-        # 8. Жареная рыба
         recipe, created = Recipe.objects.get_or_create(
             author=user1,
             name="Жареная рыба",
             defaults={
-                "text": "Обваляйте куски рыбы в муке. Жарьте на разогретом масле до золотистой корочки. "
+                "text": "Обваляйте куски рыбы в муке. "
+                "Жарьте на разогретом масле до золотистой корочки. "
                 "Подавайте с лимоном и зеленью.",
                 "cooking_time": 25,
                 "image": "recipes/fish.jpg",
@@ -359,17 +403,19 @@ class Command(BaseCommand):
                 ("лимон", 1),
             ]:
                 RecipeIngredient.objects.get_or_create(
-                    recipe=recipe, ingredient=ingredients_map[name], amount=amount
+                    recipe=recipe,
+                    ingredient=ingredients_map[name],
+                    amount=amount,
                 )
             self.stdout.write("✅ Рецепт 'Жареная рыба' создан")
 
-        # 9. Оладьи
         recipe, created = Recipe.objects.get_or_create(
             author=user1,
             name="Оладьи",
             defaults={
                 "text": "Смешайте молоко, яйца, муку, сахар и щепотку соли. "
-                "Жарьте на масле до золотистого цвета. Подавайте со сметаной или вареньем.",
+                "Жарьте на масле до золотистого цвета. "
+                "Подавайте со сметаной или вареньем.",
                 "cooking_time": 30,
                 "image": "recipes/oladi.jpg",
             },
@@ -385,16 +431,18 @@ class Command(BaseCommand):
                 ("соль", 1),
             ]:
                 RecipeIngredient.objects.get_or_create(
-                    recipe=recipe, ingredient=ingredients_map[name], amount=amount
+                    recipe=recipe,
+                    ingredient=ingredients_map[name],
+                    amount=amount,
                 )
             self.stdout.write("✅ Рецепт 'Оладьи' создан")
 
-        # 10. Салат Оливье
         recipe, created = Recipe.objects.get_or_create(
             author=user2,
             name="Салат Оливье",
             defaults={
-                "text": "Отварите картофель, морковь, яйца, колбасу. Нарежьте кубиками. "
+                "text": "Отварите картофель, морковь, яйца, колбасу. "
+                "Нарежьте кубиками. "
                 "Смешайте с майонезом, посолите, поперчите. Украсьте зеленью.",
                 "cooking_time": 20,
                 "image": "recipes/olivier.jpg",
@@ -412,16 +460,18 @@ class Command(BaseCommand):
                 ("зелень", 20),
             ]:
                 RecipeIngredient.objects.get_or_create(
-                    recipe=recipe, ingredient=ingredients_map[name], amount=amount
+                    recipe=recipe,
+                    ingredient=ingredients_map[name],
+                    amount=amount,
                 )
             self.stdout.write("✅ Рецепт 'Оливье' создан")
 
-        # 11. Рис с овощами
         recipe, created = Recipe.objects.get_or_create(
             author=user2,
             name="Рис с овощами",
             defaults={
-                "text": "Обжарьте лук и морковь. Добавьте болгарский перец, тушите 5 минут. "
+                "text": "Обжарьте лук и морковь. "
+                "Добавьте болгарский перец, тушите 5 минут. "
                 "Добавьте промытый рис, залейте водой и варите до готовности.",
                 "cooking_time": 40,
                 "image": "recipes/rice.jpg",
@@ -438,17 +488,20 @@ class Command(BaseCommand):
                 ("соль", 1),
             ]:
                 RecipeIngredient.objects.get_or_create(
-                    recipe=recipe, ingredient=ingredients_map[name], amount=amount
+                    recipe=recipe,
+                    ingredient=ingredients_map[name],
+                    amount=amount,
                 )
             self.stdout.write("✅ Рецепт 'Рис с овощами' создан")
 
-        # 12. Томатный суп
         recipe, created = Recipe.objects.get_or_create(
             author=user2,
             name="Томатный суп",
             defaults={
-                "text": "Потушите лук и морковь. Добавьте помидоры, влейте бульон, "
-                "протрите блендером. Добавьте сливки, посолите. Прогрейте — не доводя до кипения.",
+                "text": "Потушите лук и морковь. "
+                "Добавьте помидоры, влейте бульон, "
+                "протрите блендером. Добавьте сливки, посолите. "
+                "Прогрейте — не доводя до кипения.",
                 "cooking_time": 35,
                 "image": "recipes/soup.jpg",
             },
@@ -464,17 +517,20 @@ class Command(BaseCommand):
                 ("соль", 1),
             ]:
                 RecipeIngredient.objects.get_or_create(
-                    recipe=recipe, ingredient=ingredients_map[name], amount=amount
+                    recipe=recipe,
+                    ingredient=ingredients_map[name],
+                    amount=amount,
                 )
             self.stdout.write("✅ Рецепт 'Томатный суп' создан")
 
-        # 13. Лапша удон с овощами
         recipe, created = Recipe.objects.get_or_create(
             author=user1,
             name="Лапша удон с овощами",
             defaults={
-                "text": "Обжарьте лук, морковь и болгарский перец. Добавьте отваренную лапшу удон. "
-                "Полейте соевым соусом, посолите, перемешайте и тушите 3 минуты.",
+                "text": "Обжарьте лук, морковь и болгарский перец. "
+                "Добавьте отваренную лапшу удон. "
+                "Полейте соевым соусом, посолите, "
+                "перемешайте и тушите 3 минуты.",
                 "cooking_time": 20,
                 "image": "recipes/udon.jpg",
             },
@@ -491,7 +547,9 @@ class Command(BaseCommand):
                 ("лапша для лагмана", 200),
             ]:
                 RecipeIngredient.objects.get_or_create(
-                    recipe=recipe, ingredient=ingredients_map[name], amount=amount
+                    recipe=recipe,
+                    ingredient=ingredients_map[name],
+                    amount=amount,
                 )
             self.stdout.write("✅ Рецепт 'Лапша удон' создан")
 

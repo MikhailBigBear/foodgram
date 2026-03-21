@@ -22,7 +22,10 @@ class Migration(migrations.Migration):
                         verbose_name="ID",
                     ),
                 ),
-                ("password", models.CharField(max_length=128, verbose_name="password")),
+                (
+                    "password",
+                    models.CharField(max_length=128, verbose_name="password"),
+                ),
                 (
                     "email",
                     models.EmailField(
@@ -31,7 +34,9 @@ class Migration(migrations.Migration):
                 ),
                 (
                     "first_name",
-                    models.CharField(blank=True, max_length=150, verbose_name="Имя"),
+                    models.CharField(
+                        blank=True, max_length=150, verbose_name="Имя"
+                    ),
                 ),
                 (
                     "last_name",
@@ -41,7 +46,9 @@ class Migration(migrations.Migration):
                 ),
                 (
                     "avatar",
-                    models.ImageField(blank=True, null=True, upload_to="users/"),
+                    models.ImageField(
+                        blank=True, null=True, upload_to="users/"
+                    ),
                 ),
                 (
                     "is_active",
@@ -84,7 +91,9 @@ class Migration(migrations.Migration):
                 "verbose_name": "Пользователь",
                 "verbose_name_plural": "Пользователи",
                 "constraints": [
-                    models.UniqueConstraint(fields=("email",), name="unique_user_email")
+                    models.UniqueConstraint(
+                        fields=("email",), name="unique_user_email"
+                    )
                 ],
             },
         ),
