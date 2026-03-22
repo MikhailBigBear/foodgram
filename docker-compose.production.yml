@@ -3,38 +3,66 @@ version: '3.8'
 volumes:
   pg_data:
   media:
-  static:
+  collected_static:
+  build_output:
 
 services:
   db:
     image: postgres:13-alpine
-    env_file: ../.env
+    env_file: .env
     volumes:
       - pg_data:/var/lib/postgresql/data
     restart: always
 
   backend:
     image: mikhailbigbear/foodgram-backend:latest
-    env_file: ../.env
+    env_file: .env
     volumes:
       - media:/app/media/
-      - static:/app/static/
+      - collected_static:/app/static/
+      - ./data:/app/data
     depends_on:
       - db
     expose:
       - 8000
     command: >
       sh -c "
+      echo '⏳ Ждём 10 секунд...' &&
+      sleep 10 &&
       python manage.py migrate --noinput &&
       python manage.py collectstatic --noinput &&
-      echo '✅ Статика Django собрана в /app/static' &&
+      chmod -R 755 /app/static/ &&
+      python manage.py fill_db ||
+      echo '❗ fill_db уже выполнен' &&
       gunicorn foodgram.wsgi:application --bind 0.0.0.0:8000
       "
     restart: always
 
   frontend:
-    image: mikhailbigbear/foodgram-frontend:latest
-    restart: always
+    image: node:16-alpine
+    working_dir: /app
+    volumes:
+      - ./frontend:/app
+      - build_output:/app/build_output
+    depends_on:
+      - backend
+    command: >
+      sh -c "
+      echo '📦 Устанавливаем зависимости...' &&
+      npm install --legacy-peer-deps &&
+      echo '🏗️ Собираем проект...' &&
+      CI=false npm run build --legacy-peer-deps &&
+      echo '🔍 Проверяем содержимое build:' &&
+      ls -la build/ &&
+      echo '🚚 Копируем в build_output...' &&
+      rm -rf /app/build_output/* || true &&
+      cp -r build/. /app/build_output/ &&
+      echo '✅ Скопировано в /app/build_output' &&
+      ls -la /app/build_output/ &&
+      echo '⏳ Ожидаем...' &&
+      sleep infinity
+      "
+    restart: "no"
 
   nginx:
     image: nginx:1.25.4-alpine
@@ -46,5 +74,12 @@ services:
     volumes:
       - ./nginx.conf:/etc/nginx/conf.d/default.conf
       - media:/var/html/media/
-      - static:/var/html/static/
+      - collected_static:/var/html/static/
+      - build_output:/var/html/
+    command: >
+      sh -c "
+      echo '⏳ Ждём 30 секунд...' &&
+      sleep 30 &&
+      nginx -g 'daemon off;'
+      "
     restart: always
