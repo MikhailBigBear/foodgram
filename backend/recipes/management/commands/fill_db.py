@@ -91,7 +91,7 @@ class Command(BaseCommand):
                 self.stdout.write(f"✅ Тег: {tag.name}")
             tags.append(tag)
 
-        file_path = "data/ingredients.csv"
+        file_path = "/app/data/ingredients.csv"
         if not os.path.exists(file_path):
             self.stdout.write(
                 self.style.ERROR(f"❌ Файл {file_path} не найден")
