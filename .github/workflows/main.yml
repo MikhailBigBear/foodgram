@@ -48,7 +48,7 @@ jobs:
           username: ${{ env.SSH_USER }}
           key: ${{ env.SSH_KEY }}
           source: "nginx.conf"
-          target: "/opt/foodgram/infra/nginx.conf"
+          target: "/home/ubuntu/foodgram/nginx.conf"
 
       - name: Deploy on Server
         uses: appleboy/ssh-action@v0.1.10
@@ -57,7 +57,7 @@ jobs:
           username: ${{ env.SSH_USER }}
           key: ${{ env.SSH_KEY }}
           script: |
-            cd /opt/foodgram
+            cd /home/ubuntu/foodgram
             mkdir -p infra
             cp docker-compose.production.yml infra/docker-compose.yml
             cd infra
