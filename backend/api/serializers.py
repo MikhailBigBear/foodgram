@@ -25,9 +25,7 @@ from recipes.models import (
 from users.models import User
 
 from .fields import Base64ImageField
-from .pagination import StandardResultsSetPagination
 
-User = get_user_model()
 logger = logging.getLogger(__name__)
 
 

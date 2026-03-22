@@ -17,10 +17,12 @@ services:
   backend:
     image: mikhailbigbear/foodgram-backend:latest
     env_file: .env
+    environment:
+    - MEDIA_ROOT=/app/media_data
     volumes:
-      - media:/app/media/
-      - collected_static:/app/static/
-      - ./data:/app/data
+    - media:/app/media_data
+    - collected_static:/app/static/
+    - ./data:/app/data
     depends_on:
       - db
     expose:
