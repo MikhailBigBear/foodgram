@@ -332,6 +332,11 @@ class RecipeCreateSerializer(serializers.ModelSerializer):
         fresh_instance = Recipe.objects.get(id=instance.id)
         return fresh_instance
 
+    def to_representation(self, instance):
+        """Используем обычный RecipeSerializer для вывода."""
+        serializer = RecipeSerializer(instance, context=self.context)
+        return serializer.data
+
 
 class UserRegistrationSerializer(serializers.ModelSerializer):
     """

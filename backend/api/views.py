@@ -50,7 +50,10 @@ from users.models import User
 
 
 class UserViewSet(
-    mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets.GenericViewSet
+    mixins.CreateModelMixin,
+    mixins.ListModelMixin,
+    mixins.RetrieveModelMixin,
+    viewsets.GenericViewSet
 ):
     """
     ViewSet для управления пользователями.
@@ -68,7 +71,18 @@ class UserViewSet(
 
     queryset = User.objects.all()
     serializer_class = UserSerializer
-    permission_classes = [permissions.IsAuthenticated]
+
+    def get_serializer_class(self):
+        """Возвращает соответствующий сериализатор."""
+        if self.action == 'create':
+            return UserRegistrationSerializer
+        return UserSerializer
+
+    def get_permissions(self):
+        """Возвращает список разрешений."""
+        if self.action == 'create':
+            return [permissions.AllowAny()]
+        return [permissions.IsAuthenticated()]
 
     @decorators.action(detail=False, methods=["get"], url_path="me")
     def me(self, request):

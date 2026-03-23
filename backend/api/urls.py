@@ -8,29 +8,33 @@ from . import views
 router = DefaultRouter()
 
 router.register(r"tags", views.TagViewSet, basename="tags")
-router.register(
-    r"ingredients", views.IngredientViewSet, basename="ingredients"
-)
+router.register(r"ingredients", views.IngredientViewSet, basename="ingredients")
 router.register(r"recipes", views.RecipeViewSet, basename="recipes")
-
 urlpatterns = [
+    path("", include(router.urls)),
     path(
-        "users/", views.UserViewSet.as_view({"get": "list"}), name="user-list"
+        "users/",
+        views.UserViewSet.as_view({"get": "list"}),
+        name="user-list"
     ),
     path(
         "users/<int:pk>/",
         views.UserViewSet.as_view({"get": "retrieve"}),
-        name="user-detail",
+        name="user-detail"
     ),
     path(
-        "users/me/", views.UserViewSet.as_view({"get": "me"}), name="user-me"
+        "users/me/",
+        views.UserViewSet.as_view({"get": "me"}),
+        name="user-me"
     ),
     path(
         "users/me/avatar/",
-        views.UserViewSet.as_view(
-            {"put": "set_avatar", "delete": "delete_avatar"}
-        ),
-        name="user-avatar",
+        views.UserViewSet.as_view({
+            "put": "set_avatar",
+            "patch": "set_avatar",
+            "delete": "delete_avatar"
+        }),
+        name="user-avatar"
     ),
     path(
         "users/subscriptions/",
@@ -44,6 +48,7 @@ urlpatterns = [
         ),
         name="subscribe",
     ),
+
     path(
         "recipes/<int:pk>/shopping_cart/",
         views.RecipeViewSet.as_view(
@@ -54,7 +59,12 @@ urlpatterns = [
         ),
         name="recipe-shopping-cart",
     ),
-    path("", include(router.urls)),
+    path(
+        "users/",
+        views.UserRegistrationView.as_view(),
+        name="user-registration",
+    ),
+
     path(
         "auth/token/login/", views.TokenLoginView.as_view(), name="token_login"
     ),
@@ -62,10 +72,5 @@ urlpatterns = [
         "auth/token/logout/",
         views.TokenLogoutView.as_view(),
         name="token_logout",
-    ),
-    path(
-        "users/",
-        views.UserRegistrationView.as_view(),
-        name="user-registration",
     ),
 ]
