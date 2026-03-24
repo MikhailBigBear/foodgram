@@ -137,3 +137,8 @@ dmypy.json
 # .idea
 .idea
 .vscode
+
+# Ignore media & static derictories
+static/
+media/
+build/
