@@ -19,9 +19,10 @@ class IsAuthorOrReadOnly(permissions.BasePermission):
         Доступ к списку и деталям разрешён всем.
         Другие действия требуют аутентификации.
         """
-        if view.action in ["list", "retrieve"]:
-            return True
-        return request.user and request.user.is_authenticated
+        return (
+            view.action in ["list", "retrieve"]
+            or (request.user and request.user.is_authenticated)
+        )
 
     def has_object_permission(self, request, view, obj):
         """
@@ -29,9 +30,10 @@ class IsAuthorOrReadOnly(permissions.BasePermission):
 
         Автор может редактировать/удалять. Остальные — только читать.
         """
-        if request.method in permissions.SAFE_METHODS:
-            return True
-        return obj.author == request.user
+        return (
+            request.method in permissions.SAFE_METHODS
+            or obj.author == request.user
+        )
 
 
 class IsAuthenticated(permissions.BasePermission):

@@ -12,6 +12,7 @@ import base64
 
 from django.contrib.auth import authenticate
 from django.core.files.base import ContentFile
+from django.db.models import Sum
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404
 from rest_framework import (
@@ -27,6 +28,7 @@ from rest_framework.authtoken.models import Token
 from rest_framework.authtoken.views import ObtainAuthToken
 from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.views import APIView
+from django_filters import rest_framework as filters
 
 from .pagination import StandardResultsSetPagination
 from .permissions import IsAuthenticated
@@ -38,10 +40,12 @@ from .serializers import (
     UserRegistrationSerializer,
     UserSerializer,
 )
+from .filters import IngredientFilter, RecipeFilter
 from recipes.models import (
     Favorite,
     Ingredient,
     Recipe,
+    RecipeIngredient,
     ShoppingCart,
     Subscription,
     Tag,
@@ -202,12 +206,8 @@ class IngredientViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = IngredientSerializer
     pagination_class = None
 
-    def get_queryset(self):
-        """Фильтрует ингредиенты по параметру 'name'."""
-        name = self.request.query_params.get("name", "")
-        if name:
-            return self.queryset.filter(name__istartswith=name)
-        return self.queryset
+    filter_backends = [filters.DjangoFilterBackend]
+    filterset_class = IngredientFilter
 
 
 class RecipeViewSet(viewsets.ModelViewSet):
@@ -229,6 +229,8 @@ class RecipeViewSet(viewsets.ModelViewSet):
         "tags", "ingredients", "recipeingredient_set"
     )
     pagination_class = StandardResultsSetPagination
+    filter_backends = [filters.DjangoFilterBackend]
+    filterset_class = RecipeFilter
 
     def get_serializer_class(self):
         """Использует разные сериализаторы для создания/чтения."""
@@ -236,47 +238,10 @@ class RecipeViewSet(viewsets.ModelViewSet):
             return RecipeCreateSerializer
         return RecipeSerializer
 
-    def get_permissions(self):
-        """Устанавливает права доступа для действий."""
-        if self.action in ["list", "retrieve"]:
-            return [permissions.AllowAny()]
-        return [permissions.IsAuthenticated()]
-
-    def get_queryset(self):
-        """Фильтрует рецепты по параметрам запроса."""
-        queryset = self.queryset
-        is_favorited = self.request.query_params.get("is_favorited")
-        is_in_shopping_cart = self.request.query_params.get(
-            "is_in_shopping_cart"
-        )
-        author_id = self.request.query_params.get("author")
-        tags = self.request.query_params.getlist("tags")
-
-        if is_favorited == "1" and self.request.user.is_authenticated:
-            favorite_recipe_ids = Favorite.objects.filter(
-                user=self.request.user
-            ).values_list("recipe_id", flat=True)
-            queryset = queryset.filter(id__in=favorite_recipe_ids)
-
-        if is_in_shopping_cart == "1" and self.request.user.is_authenticated:
-            cart_recipe_ids = ShoppingCart.objects.filter(
-                user=self.request.user
-            ).values_list("recipe_id", flat=True)
-            queryset = queryset.filter(id__in=cart_recipe_ids)
-
-        if author_id:
-            queryset = queryset.filter(author_id=author_id)
-
-        if tags:
-            queryset = queryset.filter(tags__slug__in=tags).distinct()
-
-        return queryset
-
     def perform_create(self, serializer):
         """Сохраняет автора рецепта."""
         serializer.save(author=self.request.user)
 
-    @decorators.action(detail=True, methods=["post"], url_path="favorite")
     def add_to_favorite(self, request, pk=None):
         """Добавляет рецепт в избранное текущего пользователя."""
         recipe = get_object_or_404(Recipe, id=pk)
@@ -286,14 +251,11 @@ class RecipeViewSet(viewsets.ModelViewSet):
             serializer.data, status=status.HTTP_201_CREATED
         )
 
-    @decorators.action(detail=True, methods=["delete"], url_path="favorite")
     def remove_from_favorite(self, request, pk=None):
-        """Удаляет рецепт из избранного текущего пользователя."""
         recipe = get_object_or_404(Recipe, id=pk)
         Favorite.objects.filter(user=request.user, recipe=recipe).delete()
         return response.Response(status=status.HTTP_204_NO_CONTENT)
 
-    @decorators.action(detail=True, methods=["post"], url_path="shopping_cart")
     def add_to_shopping_cart(self, request, pk=None):
         """Добавляет рецепт в список покупок текущего пользователя."""
         recipe = get_object_or_404(Recipe, id=pk)
@@ -303,9 +265,6 @@ class RecipeViewSet(viewsets.ModelViewSet):
             serializer.data, status=status.HTTP_201_CREATED
         )
 
-    @decorators.action(
-        detail=True, methods=["delete"], url_path="shopping_cart"
-    )
     def remove_from_shopping_cart(self, request, pk=None):
         """Удаляет рецепт из списка покупок текущего пользователя."""
         recipe = get_object_or_404(Recipe, id=pk)
@@ -317,23 +276,21 @@ class RecipeViewSet(viewsets.ModelViewSet):
     )
     def download_shopping_cart(self, request):
         """Выгружает список покупок текущего пользователя в формате TXT."""
-        recipes = Recipe.objects.filter(
-            shopping_cart__user=request.user
-        ).prefetch_related("recipeingredient_set__ingredient")
+        ingredients = RecipeIngredient.objects.filter(
+            recipe__shopping_cart__user=request.user
+        ).values(
+            'ingredient__name',
+            'ingredient__measurement_unit'
+        ).annotate(
+            total_amount=Sum('amount')
+        ).order_by('ingredient__name')
 
-        recipes = Recipe.objects.filter(
-            shopping_cart__user=request.user
-        ).prefetch_related("recipeingredient_set__ingredient")
-
-        ingredients = {}
-        for recipe in recipes:
-            for ri in recipe.recipeingredient_set.all():
-                key = (ri.ingredient.name, ri.ingredient.measurement_unit)
-                ingredients[key] = ingredients.get(key, 0) + ri.amount
-
-        lines = []
-        for (name, unit), amount in ingredients.items():
-            lines.append(f"{name} ({unit}) — {int(amount)}")
+        lines = [
+            f"{item['ingredient__name']} "
+            "({item['ingredient__measurement_unit']}) - "
+            "{int(item['total_amount'])}"
+            for item in ingredients
+        ]
         content = "\n".join(lines)
 
         response = HttpResponse(content, content_type="text/plain")
@@ -361,10 +318,6 @@ class RecipeViewSet(viewsets.ModelViewSet):
         return response.Response(
             response_serializer.data, status=status.HTTP_200_OK
         )
-
-    def list(self, request, *args, **kwargs):
-        """Логирование входа в список рецептов."""
-        return super().list(request, *args, **kwargs)
 
 
 class SubscriptionViewSet(viewsets.GenericViewSet):

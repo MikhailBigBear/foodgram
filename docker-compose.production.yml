@@ -13,7 +13,6 @@ ervices:
       context: ./backend
       dockerfile: Dockerfile
     container_name: backend-1
-    # image: mikhailbigbear/foodgram-backend:latest
     env_file: .env
     depends_on:
       - db

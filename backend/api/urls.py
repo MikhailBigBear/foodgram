@@ -7,16 +7,19 @@ from . import views
 
 router = DefaultRouter()
 
-router.register(r"tags", views.TagViewSet, basename="tags")
+router.register("tags", views.TagViewSet, basename="tags")
 router.register(
-    r"ingredients", views.IngredientViewSet, basename="ingredients"
+    "ingredients", views.IngredientViewSet, basename="ingredients"
 )
-router.register(r"recipes", views.RecipeViewSet, basename="recipes")
+router.register("recipes", views.RecipeViewSet, basename="recipes")
 urlpatterns = [
     path("", include(router.urls)),
     path(
         "users/",
-        views.UserViewSet.as_view({"get": "list"}),
+        views.UserViewSet.as_view({
+            "get": "list",
+            "post": "create"
+        }),
         name="user-list"
     ),
     path(
@@ -52,27 +55,27 @@ urlpatterns = [
     ),
 
     path(
-        "recipes/<int:pk>/shopping_cart/",
-        views.RecipeViewSet.as_view(
-            {
-                "post": "add_to_shopping_cart",
-                "delete": "remove_from_shopping_cart",
-            }
-        ),
-        name="recipe-shopping-cart",
-    ),
-    path(
-        "users/",
-        views.UserRegistrationView.as_view(),
-        name="user-registration",
-    ),
-
-    path(
         "auth/token/login/", views.TokenLoginView.as_view(), name="token_login"
     ),
     path(
         "auth/token/logout/",
         views.TokenLogoutView.as_view(),
         name="token_logout",
+    ),
+    path(
+        "recipes/<int:pk>/shopping_cart/",
+        views.RecipeViewSet.as_view({
+            "post": "add_to_shopping_cart",
+            "delete": "remove_from_shopping_cart",
+        }),
+        name="recipe-shopping-cart",
+    ),
+    path(
+        "recipes/<int:pk>/favorite/",
+        views.RecipeViewSet.as_view({
+            "post": "add_to_favorite",
+            "delete": "remove_from_favorite",
+        }),
+        name="recipe-favorite",
     ),
 ]

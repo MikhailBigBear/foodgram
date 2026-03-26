@@ -6,9 +6,11 @@
 """
 
 import logging
+import string
 
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError as DjangoValidationError
+from django.db import transaction
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 
@@ -23,9 +25,11 @@ from recipes.models import (
 )
 from users.models import User
 
-from .fields import Base64ImageField
+from drf_extra_fields.fields import Base64ImageField
 
 logger = logging.getLogger(__name__)
+
+DIGITS = frozenset(string.digits)
 
 
 class UserShortSerializer(serializers.ModelSerializer):
@@ -177,10 +181,8 @@ class UserSerializer(serializers.ModelSerializer):
         if not recipes.exists():
             return []
 
-        if recipes_limit and recipes_limit.isdigit():
+        if recipes_limit and all(char in DIGITS for char in recipes_limit):
             recipes = recipes[: int(recipes_limit)]
-
-        from .serializers import RecipeSerializer
 
         serializer = RecipeSerializer(recipes, many=True, context=self.context)
         return serializer.data
@@ -264,12 +266,13 @@ class RecipeCreateSerializer(serializers.ModelSerializer):
             raise ValidationError("Нужно выбрать хотя бы один тег.")
         return value
 
+    @transaction.atomic
     def create(self, validated_data):
         """Создает новый рецепт с ингредиентами и тегами."""
         ingredients_data = validated_data.pop("ingredients")
         tags_data = validated_data.pop("tags")
 
-        recipe = Recipe.objects.create(**validated_data)
+        recipe = super().create(validated_data)
         recipe.tags.set(tags_data)
 
         RecipeIngredient.objects.bulk_create(
@@ -285,45 +288,16 @@ class RecipeCreateSerializer(serializers.ModelSerializer):
 
         return recipe
 
+    @transaction.atomic
     def update(self, instance, validated_data):
         """Обновляет рецепт, заменяя теги и ингредиенты."""
         ingredients_data = validated_data.pop("ingredients", None)
         tags_data = validated_data.pop("tags", None)
 
-        instance.name = validated_data.get("name", instance.name)
-        instance.text = validated_data.get("text", instance.text)
-        instance.cooking_time = validated_data.get(
-            "cooking_time", instance.cooking_time
+        instance = super().update(instance, validated_data)
+        self._handle_ingredients_and_tags(
+            instance, ingredients_data, tags_data
         )
-        if "image" in validated_data:
-            instance.image = validated_data["image"]
-        instance.save()
-
-        if tags_data is not None:
-            instance.tags.set(tags_data)
-
-        if ingredients_data is not None:
-            instance.recipeingredient_set.all().delete()
-
-            new_ingredients = []
-            for item in ingredients_data:
-                try:
-                    ingredient = item["ingredient"]
-                    amount = item["amount"]
-                    if not isinstance(amount, (int, float)) or amount <= 0:
-                        raise ValidationError(f"Неверное количество: {amount}")
-                    new_ingredients.append(
-                        RecipeIngredient(
-                            recipe=instance,
-                            ingredient=ingredient,
-                            amount=amount,
-                        )
-                    )
-                except Exception as e:
-                    raise ValidationError(f"Ошибка в ингредиенте: {e}")
-
-            if new_ingredients:
-                RecipeIngredient.objects.bulk_create(new_ingredients)
 
         if hasattr(instance, "_prefetched_objects_cache"):
             instance._prefetched_objects_cache = {}
@@ -379,18 +353,8 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         """Создает нового пользователя с хешированным паролем."""
         password = validated_data.pop("password")
-        username = validated_data["username"]
-
-        if User.objects.filter(username=username).exists():
-            raise ValidationError(
-                {"username": "Пользователь с таким именем уже существует."}
-            )
-
         user = User.objects.create_user(
-            username=username,
-            email=validated_data["email"],
             password=password,
-            first_name=validated_data["first_name"],
-            last_name=validated_data["last_name"],
+            **validated_data,
         )
         return user

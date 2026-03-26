@@ -13,7 +13,6 @@ ALLOWED_HOSTS = [
     "localhost",
     "130.193.45.160",
     "127.0.0.1",
-    "foodgrammyrecipes.ru",
 ]
 
 INSTALLED_APPS = [
@@ -25,6 +24,7 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     "rest_framework",
     "rest_framework.authtoken",
+    "drf_extra_fields",
     "django_filters",
     "api",
     "recipes.apps.RecipesConfig",

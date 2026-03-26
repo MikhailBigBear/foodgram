@@ -12,6 +12,14 @@ from django.conf import settings
 from django.core.validators import MinValueValidator
 from django.db import models
 
+from .const import (
+    INGREDIENT_NAME_MAX_LENGTH,
+    MEASUREMENT_UNIT_MAX_LENGTH,
+    TAG_NAME_MAX_LENGTH,
+    TAG_SLUG_MAX_LENGTH,
+    RECIPE_NAME_MAX_LENGTH
+)
+
 
 class Ingredient(models.Model):
     """
@@ -21,12 +29,12 @@ class Ingredient(models.Model):
     """
 
     name = models.CharField(
-        max_length=128,
+        max_length=INGREDIENT_NAME_MAX_LENGTH,
         verbose_name="Название",
         help_text="Название ингредиента",
     )
     measurement_unit = models.CharField(
-        max_length=64,
+        max_length=MEASUREMENT_UNIT_MAX_LENGTH,
         verbose_name="Единица измерения",
         help_text="Единица измерения ингредиента",
     )
@@ -52,13 +60,13 @@ class Tag(models.Model):
     """
 
     name = models.CharField(
-        max_length=32,
+        max_length=TAG_NAME_MAX_LENGTH,
         unique=True,
         verbose_name="Название",
         help_text="Название тега",
     )
     slug = models.SlugField(
-        max_length=32,
+        max_length=TAG_SLUG_MAX_LENGTH,
         unique=True,
         verbose_name="Slug",
         help_text="Короткая метка для URL",
@@ -91,7 +99,9 @@ class Recipe(models.Model):
         help_text="Пользователь, создавший рецепт",
     )
     name = models.CharField(
-        max_length=256, verbose_name="Название", help_text="Название рецепта"
+        max_length=RECIPE_NAME_MAX_LENGTH,
+        verbose_name="Название",
+        help_text="Название рецепта"
     )
     image = models.ImageField(
         upload_to="recipes/",
