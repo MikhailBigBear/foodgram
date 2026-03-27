@@ -7,6 +7,8 @@
 from django.contrib.auth.models import AbstractUser, BaseUserManager
 from django.db import models
 
+from .const import USER_FIRST_NAME_MAX_LENGTH, USER_LAST_NAME_MAX_LENGTH
+
 
 class UserManager(BaseUserManager):
     """
@@ -49,11 +51,16 @@ class User(AbstractUser):
         unique=True,
         help_text="Уникальный адрес электронной почты.",
     )
-    first_name = models.CharField("Имя", max_length=150, blank=True)
-    last_name = models.CharField("Фамилия", max_length=150, blank=True)
+    first_name = models.CharField(
+        "Имя", max_length=USER_FIRST_NAME_MAX_LENGTH, blank=True
+    )
+    last_name = models.CharField(
+        "Фамилия", max_length=USER_LAST_NAME_MAX_LENGTH, blank=True
+    )
     avatar = models.ImageField(
         upload_to="users/",
-        null=True, blank=True,
+        null=True,
+        blank=True,
         help_text="Фотография профиля.",
     )
     is_active = models.BooleanField(

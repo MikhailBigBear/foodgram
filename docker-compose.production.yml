@@ -58,12 +58,9 @@ ervices:
       npm install --legacy-peer-deps &&
       echo '🏗️ Собираем проект...' &&
       CI=false npm run build --legacy-peer-deps &&
-      echo '🚚 Копируем статику в /var/html/static...' &&
-      mkdir -p /var/html/static &&
-      cp -r build/static/. /var/html/static/ &&
-      echo '📄 Копируем index.html в /var/html/build...' &&
+      echo '🚚 Копируем ВЕСЬ build/ в /var/html/build...' &&
       mkdir -p /var/html/build &&
-      cp build/index.html /var/html/build/ &&
+      cp -r build/. /var/html/build/ &&
       echo '✅ Готово' &&
       sleep infinity
       "

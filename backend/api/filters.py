@@ -7,6 +7,7 @@
 """
 
 from django_filters import rest_framework as filters
+
 from recipes.models import Ingredient, Recipe, Tag
 
 
@@ -34,7 +35,6 @@ class RecipeFilter(filters.FilterSet):
     is_in_shopping_cart = filters.BooleanFilter(
         method='filter_is_in_shopping_cart'
     )
-    author = filters.NumberFilter(field_name='author__id')
 
     def filter_is_favorited(self, queryset, name, value):
         """Добавляет фильтрацию по избранным рецептам текущего пользователя."""

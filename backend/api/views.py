@@ -252,6 +252,7 @@ class RecipeViewSet(viewsets.ModelViewSet):
         )
 
     def remove_from_favorite(self, request, pk=None):
+        """Удаляет из избранного."""
         recipe = get_object_or_404(Recipe, id=pk)
         Favorite.objects.filter(user=request.user, recipe=recipe).delete()
         return response.Response(status=status.HTTP_204_NO_CONTENT)
@@ -298,6 +299,15 @@ class RecipeViewSet(viewsets.ModelViewSet):
             'attachment; filename="shopping_list.txt"'
         )
         return response
+
+    @decorators.action(detail=True, methods=["get"], url_path="get-link")
+    def get_link(self, request, pk=None):
+        """Возвращает короткий URL для рецепта."""
+        recipe = self.get_object()
+        short_link = request.build_absolute_uri(f"/recipes/{recipe.id}/")
+        return response.Response(
+            {"short_link": short_link}, status=status.HTTP_200_OK
+        )
 
     def update(self, request, *args, **kwargs):
         """Обновляет рецепт, проверяя права доступа."""

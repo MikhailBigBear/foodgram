@@ -295,9 +295,20 @@ class RecipeCreateSerializer(serializers.ModelSerializer):
         tags_data = validated_data.pop("tags", None)
 
         instance = super().update(instance, validated_data)
-        self._handle_ingredients_and_tags(
-            instance, ingredients_data, tags_data
-        )
+        if tags_data is not None:
+            instance.tags.set(tags_data)
+        if ingredients_data is not None:
+            RecipeIngredient.objects.filter(recipe=instance).delete()
+            RecipeIngredient.objects.bulk_create(
+                [
+                    RecipeIngredient(
+                        recipe=instance,
+                        ingredient=item["ingredient"],
+                        amount=item["amount"],
+                    )
+                    for item in ingredients_data
+                ]
+            )
 
         if hasattr(instance, "_prefetched_objects_cache"):
             instance._prefetched_objects_cache = {}
