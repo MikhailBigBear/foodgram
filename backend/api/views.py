@@ -304,9 +304,12 @@ class RecipeViewSet(viewsets.ModelViewSet):
     def get_link(self, request, pk=None):
         """Возвращает короткий URL для рецепта."""
         recipe = self.get_object()
-        short_link = request.build_absolute_uri(f"/recipes/{recipe.id}/")
+        host = request.META.get("HTTP_HOST", "130.193.45.160")
+        protocol = "https" if request.is_secure() else "http"
+        short_link = f"{protocol}://{host}/s/{recipe.id}/"
         return response.Response(
-            {"short_link": short_link}, status=status.HTTP_200_OK
+            {"short_link": short_link},
+            status=status.HTTP_200_OK
         )
 
     def update(self, request, *args, **kwargs):

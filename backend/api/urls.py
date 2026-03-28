@@ -42,6 +42,11 @@ urlpatterns = [
         name="user-avatar"
     ),
     path(
+        "users/set_password/",
+        views.UserViewSet.as_view({"post": "change_password"}),
+        name="user-set-password",
+    ),
+    path(
         "users/subscriptions/",
         views.SubscriptionViewSet.as_view({"get": "subscriptions"}),
         name="subscriptions",
