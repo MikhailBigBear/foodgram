@@ -1,4 +1,4 @@
-ervices:
+services:
   db:
     image: postgres:13-alpine
     env_file: .env
@@ -40,7 +40,7 @@ ervices:
       - ./data:/app/data
       - ./data/media:/app/media
     expose:
-      8000
+      - "8000"
     restart: always
     networks:
       - foodgram-network
@@ -52,6 +52,7 @@ ervices:
       - ./frontend:/app
       - ./static_build:/var/html/build
       - ./static:/var/html/static
+      - static_value:/shared_static
     command: >
       sh -c "
       echo '📦 Устанавливаем зависимости...' &&
@@ -61,6 +62,10 @@ ervices:
       echo '🚚 Копируем ВЕСЬ build/ в /var/html/build...' &&
       mkdir -p /var/html/build &&
       cp -r build/. /var/html/build/ &&
+      echo '🚚 Копируем JS/CSS в /shared_static для /static/...' &&
+      mkdir -p /shared_static/js /shared_static/css &&
+      cp -r build/static/js/*.js /shared_static/js/ 2>/dev/null || true &&
+      cp -r build/static/css/*.css /shared_static/css/ 2>/dev/null || true &&
       echo '✅ Готово' &&
       sleep infinity
       "

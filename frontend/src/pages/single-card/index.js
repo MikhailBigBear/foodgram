@@ -7,6 +7,7 @@ import {
   Icons,
   LinkComponent,
 } from "../../components";
+import { copyToClipboard } from "../../utils/copyToClipboard";
 import { UserContext, AuthContext } from "../../contexts";
 import { useContext, useState, useEffect } from "react";
 import styles from "./styles.module.css";
@@ -37,27 +38,27 @@ const SingleCard = ({ loadItem, updateOrders }) => {
   const handleCopyLink = () => {
     api
       .copyRecipeLink({ id })
-      .then(({ "short-link": shortLink }) => {
-        navigator.clipboard
-          .writeText(shortLink)
-          .then(() => {
-            setNotificationPosition("40px");
-            setTimeout(() => {
-              setNotificationPosition("-100%");
-            }, 3000);
-          })
-          .catch(() => {
-            /**
-             * В Safari не работает запись в буфер внутри асинхронного запроса,
-             * поэтому добавил отдельную плашку на этот случай
-             */
-            setNotificationError({
-              text: `Ваша ссылка: ${shortLink}`,
-              position: "40px",
-            });
+      .then((data) => {
+        const shortLink = data["short_link"];
+        if (copyToClipboard(shortLink)) {
+          setNotificationPosition("40px");
+          setTimeout(() => {
+            setNotificationPosition("-100%");
+          }, 3000);
+        } else {
+          setNotificationError({
+            text: `Скопируйте ссылку: ${shortLink}`,
+            position: "40px",
           });
+        }
       })
-      .catch((err) => console.log(err));
+      .catch((err) => {
+        console.error("Ошибка получения ссылки", err);
+        setNotificationError({
+          text: "Не удалось получить ссылку",
+          position: "40px",
+        });
+      });
   };
 
   const handleErrorClose = () => {
